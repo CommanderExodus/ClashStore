@@ -1,0 +1,127 @@
+ClashRoyalTruppe
+
+mighty_miner
+skeleton_king
+archer_queen
+golden_knight
+monk
+little_prince
+goblinstein
+boss_bandit
+
+ice_wizard
+princess
+lava_hound
+miner
+sparky
+lumberjack
+inferno_dragon 8
+electro_wizard
+bandit 5
+night_witch
+royal_ghost
+ram_rider
+mega_knight
+fisherman 6
+magic_archer
+mother_witch
+phoenix 8
+goblin_machine
+graveyard
+the_log
+spirit_empress
+
+pekka
+balloon
+witch 1
+golem 0
+skeleton_army
+baby_dragon
+prince
+giant_skeleton 6
+guards 2
+dark_prince
+bowler 3
+hunter
+executioner
+cannon_cart
+wall_breaker 5
+goblin_giant
+electro_dragon
+electro_giant 0
+rune_giant
+x_bow 4
+goblin_drill 2
+rage
+gobline_barrel
+freeze
+mirror
+lightning 4
+poison
+tornado 4
+clone
+barbarian_barrel
+void
+goblin_curse
+vines
+
+giant
+valkyrie 1
+musketeer 5
+wizard 1
+mini_pekka
+hog_rider
+three_musketeers
+battle_ram 2
+ice_golem
+mega_minion 0
+dart_goblin 0
+zappies 3
+flying_machine
+royal_hogs 1
+elixir_golem
+battle_healer
+goblin_demolisher 4
+suspicious_bush
+goblin_hut 2
+inferno_tower
+bomb_tower
+barbarian_hut
+elixir_collector
+tombstone 3
+furnace
+goblin_cage 3
+fireball
+rocket
+earthquake
+heal_spirit
+
+knight 0
+archers 1
+goblins
+minions 1
+barbarians 2
+skeletons
+bomber
+spear_goblins
+minion_horde
+royal_giant
+ice_spirit
+fire_spirit
+goblin_gang 4
+elite_barbarians 6
+royal_recruits 7
+bats
+rascals 6
+skeleton_barrel 3
+firecracker
+skeleton_dragons
+electro_spirit
+berseker
+cannon
+mortar 5
+tesla
+arrows
+zap
+giant_snowball 3
+royal_delivery 5
