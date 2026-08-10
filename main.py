@@ -1,10 +1,31 @@
 """Modul zur Erkennung von Shop-Kacheln in Clash Royale mittels OpenCV."""
+import json
 import os
 
 import cv2
 import numpy as np
 import pytesseract
-import json
+
+
+def _compute_price(unit_price: int, count: int) -> int:
+    """Berechnet den Gesamtpreis aus Einzelpreis und Anzahl.
+
+    Args:
+        unit_price: Preis pro Karte in Gold.
+        count: Anzahl der Karten.
+
+    Returns:
+        Den berechneten Gesamtpreis in Gold.
+
+    Examples:
+        >>> _compute_price(10, 80)
+        800
+        >>> _compute_price(50, 0)
+        0
+        >>> _compute_price(200, 5)
+        1000
+    """
+    return unit_price * count
 
 
 class ClashStoreAnalyzer:
@@ -94,10 +115,6 @@ class ClashStoreAnalyzer:
 
         custom_config = r'--psm 7 -c tessedit_char_whitelist=0123456789x'
         text = pytesseract.image_to_string(padded_img, config=custom_config)
-        print(text)
-        cv2.imshow("temp", thresh)
-        cv2.waitKey()
-        cv2.destroyAllWindows()
 
         # 4. Bereinigung: Aus "x80" mach "80"
         numbers_only = "".join(filter(str.isdigit, text))
@@ -116,14 +133,14 @@ class ClashStoreAnalyzer:
         Returns:
             Den berechneten Gold-Preis
         """
-        rarity = self.rarities[card_name]
+        rarity = self.rarities.get(card_name)
         if not rarity:
             raise ValueError(f"Karte nicht gefunden: {card_name}")
 
         unit_price = self.prices.get(rarity)
-        if not unit_price:
-            raise ValueError(f"Preis für Seltenheit nicht gefunden: {card_name}")
-        return count * unit_price
+        if unit_price is None:
+            raise ValueError(f"Preis für Seltenheit nicht gefunden: {rarity}")
+        return _compute_price(unit_price, count)
 
     def analyze_screenshots(self, image_path: str) -> list[dict]:
         """Durchsucht das Bild nach allen bekannten Templates und liest die Werte.

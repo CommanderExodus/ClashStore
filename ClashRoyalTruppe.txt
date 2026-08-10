@@ -125,3 +125,20 @@ arrows
 zap
 giant_snowball 3
 royal_delivery 5
+
+
+Anzahl zu kaufen im Shop
+x1
+x5
+x6
+x7
+x8 (21)
+x10
+x20
+x25 (free rare) (3)
+x30
+x40
+x50
+x80
+x100 (auch free common)
+"" (free 5 epic)
