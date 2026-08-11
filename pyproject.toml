@@ -35,6 +35,6 @@ fail-under = 20
 verbose = 1
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "main.py", "CvMethods.py"]
 pythonpath = ["."]
 addopts = "--doctest-modules"
