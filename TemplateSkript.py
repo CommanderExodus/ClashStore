@@ -40,29 +40,33 @@ def create_normalized_template(
     cv2.destroyAllWindows()
 
 
-# Template w = 208, h = 188
-# First Row, x = 85
-# Second Row, x = 432
-# Third Row, x = 777
-# Offset first to second row, y = y + 669
+def main():
+    # Template w = 208, h = 188
+    # First Row, x = 85
+    # Second Row, x = 432
+    # Third Row, x = 777
+    # Offset first to second row, y = y + 669
 
-temp = 510 + 240
-shop_path = "shop_pictures/2.jpeg"
+    temp = 510 + 240
+    shop_path = "shop_pictures/2.jpeg"
 
-# Slot 1
-# create_normalized_template(shop_path, "gold_chest", x=85, y=temp, w=208, h=188)
-# Slot 2
-# create_normalized_template(shop_path, "gold_chest", x=432, y=temp, w=208, h=188)
-# Slot 3
-# create_normalized_template(shop_path, "void", x=777, y=temp, w=208, h=188)
-# Slot 4
-create_normalized_template(shop_path, "guards", x=85, y=temp + 669, w=208, h=188)
-# Slot 5
-# create_normalized_template(
-#     shop_path, "mother_witch", x=432, y=temp + 669, w=208, h=188
-# )
-# Slot 6
-# create_normalized_template(shop_path, "sparky", x=777, y=temp + 669, w=208, h=188)
+    # Slot 1
+    # create_normalized_template(shop_path, "gold_chest", x=85, y=temp, w=208, h=188)
+    # Slot 2
+    # create_normalized_template(shop_path, "gold_chest", x=432, y=temp, w=208, h=188)
+    # Slot 3
+    # create_normalized_template(shop_path, "void", x=777, y=temp, w=208, h=188)
+    # Slot 4
+    create_normalized_template(shop_path, "guards", x=85, y=temp + 669, w=208, h=188)
+    # Slot 5
+    # create_normalized_template(
+    #     shop_path, "mother_witch", x=432, y=temp + 669, w=208, h=188
+    # )
+    # Slot 6
+    # create_normalized_template(shop_path, "sparky", x=777, y=temp + 669, w=208, h=188)
+
+    # 765
 
 
-# 765
+if __name__ == "__main__":
+    main()
