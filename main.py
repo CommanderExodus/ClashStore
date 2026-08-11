@@ -1,4 +1,5 @@
 """Modul zur Erkennung von Shop-Kacheln in Clash Royale mittels OpenCV."""
+
 import json
 import os
 
@@ -36,7 +37,12 @@ class ClashStoreAnalyzer:
         target_width: Die Standartbreite, auf die alle Bilder skaliert werden.
     """
 
-    def __init__(self, template_dir: str, target_width: int = 1080, config_path: str = 'cards.json'):
+    def __init__(
+        self,
+        template_dir: str,
+        target_width: int = 1080,
+        config_path: str = "cards.json",
+    ):
         """Initialisiert den Analyzer mit einem Template.
 
         Args:
@@ -47,10 +53,10 @@ class ClashStoreAnalyzer:
         self.target_width = target_width
         self.template = {}
 
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             data = json.load(f)
-            self.prices = data['prices']
-            self.rarities = data['rarities']
+            self.prices = data["prices"]
+            self.rarities = data["rarities"]
 
         # 1. Templates aus dem Ordner laden
         if not os.path.exists(template_dir):
@@ -79,7 +85,11 @@ class ClashStoreAnalyzer:
         """
         height, width = image.shape[:2]
         scale = self.target_width / float(width)
-        resized = cv2.resize(image, (self.target_width, int(height * scale)), interpolation=cv2.INTER_AREA)
+        resized = cv2.resize(
+            image,
+            (self.target_width, int(height * scale)),
+            interpolation=cv2.INTER_AREA,
+        )
         return cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY), resized
 
     def read_number_from_zone(self, zone_img: np.ndarray) -> int:
@@ -97,7 +107,9 @@ class ClashStoreAnalyzer:
 
         # 2. Graustufen und Binarisierung
         gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 300, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        _, thresh = cv2.threshold(
+            gray, 300, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+        )
 
         # 2,5. Morphologische Erosion
         kernel = np.ones((2, 2), np.uint8)
@@ -108,12 +120,15 @@ class ClashStoreAnalyzer:
 
         padded_img = cv2.copyMakeBorder(
             tesseract_ready,
-            top=20, bottom=20, left=20, right=20,
+            top=20,
+            bottom=20,
+            left=20,
+            right=20,
             borderType=cv2.BORDER_CONSTANT,
-            value=[255, 255, 255]
+            value=[255, 255, 255],
         )
 
-        custom_config = r'--psm 7 -c tessedit_char_whitelist=0123456789x'
+        custom_config = r"--psm 7 -c tessedit_char_whitelist=0123456789x"
         text = pytesseract.image_to_string(padded_img, config=custom_config)
 
         # 4. Bereinigung: Aus "x80" mach "80"
@@ -169,36 +184,41 @@ class ClashStoreAnalyzer:
                 x, y = max_loc
 
                 # Zonen zum lesen
-                count_zone = img_color_scaled[y + 188:y + 255, x + 62:x + 185]
+                count_zone = img_color_scaled[y + 188 : y + 255, x + 62 : x + 185]
 
                 # OCR
                 count_val = self.read_number_from_zone(count_zone)
                 calculated_price = self.calculate_price(card_name, count_val)
 
                 # Ergebnise an result anhängen
-                results.append({
-                    "card_name": card_name,
-                    "count": count_val,
-                    "calculated_price": calculated_price,
-                    "rarity": self.rarities[card_name]
-                })
+                results.append(
+                    {
+                        "card_name": card_name,
+                        "count": count_val,
+                        "calculated_price": calculated_price,
+                        "rarity": self.rarities[card_name],
+                    }
+                )
         return results
 
 
 def main():
     try:
-        analyzer = ClashStoreAnalyzer(template_dir='templates/cards')
+        analyzer = ClashStoreAnalyzer(template_dir="templates/cards")
 
         # Screenshots analysieren
-        db_data = analyzer.analyze_screenshots('shop_pictures/3.jpeg')
+        db_data = analyzer.analyze_screenshots("shop_pictures/3.jpeg")
 
         for row in db_data:
-            print(f"Karte: {row['card_name'].upper():<10} | "
-                  f"Anzahl: {row['count']} | "
-                  f"Preis: {row['calculated_price']} Gold")
+            print(
+                f"Karte: {row['card_name'].upper():<10} | "
+                f"Anzahl: {row['count']} | "
+                f"Preis: {row['calculated_price']} Gold"
+            )
 
     except Exception as e:
         print(f"Ein Fehler ist aufgetreten: {e}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
