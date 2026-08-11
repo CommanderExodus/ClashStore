@@ -105,18 +105,15 @@ class ClashStoreAnalyzer:
         # 1. Vergrößern
         resized = cv2.resize(zone_img, None, fx=3, fy=3, interpolation=cv2.INTER_LINEAR)
 
-        # 2. Graustufen und Binarisierung
-        gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(
-            gray, 300, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-        )
-
-        # 2,5. Morphologische Erosion
-        kernel = np.ones((2, 2), np.uint8)
-        thinned = cv2.erode(thresh, kernel, iterations=1)
+        # 2. Farbmaske: Die Anzahl ist immer weiß mit schwarzer Umrandung,
+        # unabhängig vom Kartenhintergrund. Graustufen-Otsu scheitert daran,
+        # dass der Hintergrund pro Karte stark variiert.
+        white_mask = cv2.inRange(resized, (170, 170, 170), (255, 255, 255))
+        kernel = np.ones((3, 3), np.uint8)
+        digit_mask = cv2.morphologyEx(white_mask, cv2.MORPH_CLOSE, kernel)
 
         # 3. OCR
-        tesseract_ready = cv2.bitwise_not(thinned)
+        tesseract_ready = cv2.bitwise_not(digit_mask)
 
         padded_img = cv2.copyMakeBorder(
             tesseract_ready,
