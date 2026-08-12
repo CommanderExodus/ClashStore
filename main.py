@@ -122,7 +122,14 @@ class ClashStoreAnalyzer:
     def match_count(self, search_zone_gray: np.ndarray) -> int:
         """Ermittelt die Store-Menge per Template-Matching.
 
-        Template matching der z.B. x80 gegen großes Suchfeld, die höchste konfidenz gewinnt
+        Template matching der z.B. x80 gegen großes Suchfeld. Kürzere
+        Mengen wie "x8" sind optisch ein Präfix von längeren wie "x80"
+        und erreichen dort ebenfalls eine hohe Konfidenz. Deshalb werden
+        die Templates nach Breite (Ziffernanzahl) gruppiert und von der
+        breitesten zur schmalsten Gruppe durchprobiert: Sobald in einer
+        Gruppe eine Menge die Schwelle erreicht, gewinnt die Menge mit
+        der höchsten Konfidenz innerhalb dieser Gruppe — so gewinnt
+        "x80" gegen "x8" und "x30" gegen das gleich breite "x50".
 
         Args:
             search_zone_gray: Graustufen-Suchbereich unterhalb der Karte.
@@ -131,25 +138,36 @@ class ClashStoreAnalyzer:
             Die erkannte Menge, oder 0 wenn keine Menge sicher genug
             erkannt wurde.
         """
-        best_value = 0
-        best_score = 0.0
+        widths = sorted(
+            {template.shape[1] for template in self.number_templates.values()},
+            reverse=True,
+        )
 
-        for value, template in self.number_templates.items():
-            if (
-                template.shape[0] > search_zone_gray.shape[0]
-                or template.shape[1] > search_zone_gray.shape[1]
-            ):
-                continue
+        for width in widths:
+            best_value = 0
+            best_score = 0.0
 
-            res = cv2.matchTemplate(search_zone_gray, template, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, _ = cv2.minMaxLoc(res)
+            for value, template in self.number_templates.items():
+                if template.shape[1] != width:
+                    continue
+                if (
+                    template.shape[0] > search_zone_gray.shape[0]
+                    or template.shape[1] > search_zone_gray.shape[1]
+                ):
+                    continue
 
-            if max_val > best_score:
-                best_score = max_val
-                best_value = value
+                res = cv2.matchTemplate(
+                    search_zone_gray, template, cv2.TM_CCOEFF_NORMED
+                )
+                _, max_val, _, _ = cv2.minMaxLoc(res)
 
-        if best_score >= self._COUNT_MATCH_THRESHOLD:
-            return best_value
+                if max_val > best_score:
+                    best_score = max_val
+                    best_value = value
+
+            if best_score >= self._COUNT_MATCH_THRESHOLD:
+                return best_value
+
         return 0
 
     def calculate_price(self, card_name: str, count: int) -> int:
