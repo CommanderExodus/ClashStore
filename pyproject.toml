@@ -5,7 +5,6 @@ description = "Analysiert Clash Royale Shop-Screenshots per Computer Vision und 
 requires-python = ">=3.14"
 dependencies = [
     "opencv-python>=5.0.0",
-    "pytesseract>=0.3.13",
     "numpy>=2.5.2",
     "pillow>=12.3.0",
 ]
@@ -31,10 +30,11 @@ strict = false
 ignore_missing_imports = true
 
 [tool.interrogate]
-fail-under = 20
+fail-under = 80
 verbose = 1
+exclude = ["tests"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "main.py", "CvMethods.py"]
+testpaths = ["tests", "main.py"]
 pythonpath = ["."]
 addopts = "--doctest-modules"
