@@ -1,3 +1,10 @@
+"""Hilfsskript zum manuellen Ausschneiden neuer Karten-/Zahlen-Templates.
+
+Lädt einen Referenz-Screenshot, normalisiert ihn auf die Standardbreite und
+schneidet per Hand ermittelte Koordinaten (siehe CoordinateFinder.py) als
+neues PNG-Template aus.
+"""
+
 import cv2
 
 
@@ -41,6 +48,7 @@ def create_normalized_template(
 
 
 def main():
+    """Schneidet die unten konfigurierten Templates aus dem Referenzbild aus."""
     # Template w = 208, h = 188
     # First Row, x = 85
     # Second Row, x = 432
@@ -49,21 +57,24 @@ def main():
     # number width = 46  2:92  3:138  4:170
     # number height = 64
 
-    temp = 952 + 240
-    shop_path = "shop_pictures/173.jpg"
+    shop_path = "shop_pictures/8.jpeg"
 
     # Slot 1
-    # create_normalized_template(shop_path, "zahl", x=125, y=985, w=125, h=64)
+    create_normalized_template(shop_path, "collected", x=70, y=1235, w=245, h=47)
     # Slot 2
-    #create_normalized_template(shop_path, "canon", x=432, y=722, w=208, h=188)
+    # create_normalized_template(shop_path, "canon", x=432, y=722, w=208, h=188)
     # Slot 3
-    #create_normalized_template(shop_path, "skeleton_barrel", x=780, y=800, w=208, h=188)
+    # create_normalized_template(
+    #     shop_path, "skeleton_barrel", x=780, y=800, w=208, h=188
+    # )
     # Slot 4
     # create_normalized_template(shop_path, "zahl", x=140, y=940 + 669, w=92, h=64)
     # Slot 5
     # create_normalized_template(shop_path, "zahl", x=488, y=870 + 669, w=92, h=64)
     # Slot 6
-    #create_normalized_template(shop_path, "ram_rider", x=776, y=629 + 669, w=208, h=188)
+    # create_normalized_template(
+    #     shop_path, "ram_rider", x=776, y=629 + 669, w=208, h=188
+    # )
 
 
 if __name__ == "__main__":

@@ -1,11 +1,28 @@
+"""Interaktives Tool zum Ablesen von Pixel-Koordinaten in einem Screenshot.
+
+Kalibrierungs-Hilfsskript: zeigt die Mauskoordinate live im Bild an und
+druckt sie bei Linksklick in die Konsole, um Zuschnitt-Koordinaten für
+TemplateSkript.py zu ermitteln.
+"""
+
 import cv2
 
 
 def main():
+    """Öffnet das Referenzbild und startet den interaktiven Koordinaten-Picker."""
     # Lade dein Bild
     img = cv2.imread("shop_pictures/2.jpeg")
 
     def show_coordinates(event, x, y, flags, param):
+        """Maus-Callback: zeigt die Koordinate im Bild und loggt sie bei Klick.
+
+        Args:
+            event: Der ausgelöste OpenCV-Maus-Event.
+            x: X-Koordinate der Maus im Fenster.
+            y: Y-Koordinate der Maus im Fenster.
+            flags: Zusätzliche OpenCV-Event-Flags (ungenutzt).
+            param: Optionale Nutzerdaten von setMouseCallback (ungenutzt).
+        """
         if event == cv2.EVENT_MOUSEMOVE:
             # Kopie des Bildes machen, damit die alten Zahlen verschwinden
             img_copy = img.copy()
