@@ -35,6 +35,9 @@ class ClashStoreAnalyzer:
         template: Graustufen-Bild eines Templates einer Karte.
         number_templates: Graustufen-Template je bekannter Store-Menge
             (z.B. 80 -> Template von "x80"), fürs Erkennen der Anzahl.
+        status_templates: Graustufen-Template je Status-Banner
+            ("collected" -> "Collected!", "free" -> "FREE!"), zeigt an,
+            dass die Karte nichts gekostet hat.
         target_width: Die Standartbreite, auf die alle Bilder skaliert werden.
     """
 
@@ -43,6 +46,16 @@ class ClashStoreAnalyzer:
     _COUNT_SEARCH_Y = (170, 270)
     _COUNT_SEARCH_X = (0, 260)
     _COUNT_MATCH_THRESHOLD = 0.85
+
+    # Suchbereich für die Status-Banner (Collected!/FREE!), die weiter
+    # unten auf der Kachel sitzen, an der Stelle des Goldpreises.
+    _STATUS_SEARCH_Y = (170, 500)
+    _STATUS_SEARCH_X = (0, 330)
+    # Deutlich niedriger als _COUNT_MATCH_THRESHOLD: hier geht es nur um
+    # "Banner da oder nicht", nicht um die Unterscheidung ähnlicher
+    # Templates. Normale (bezahlte) Karten scoren konstant ~0.28, ein
+    # echtes "Collected!"-Banner ~0.41 -> 0.35 trennt beide sauber.
+    _STATUS_MATCH_THRESHOLD = 0.35
 
     def __init__(
         self,
@@ -58,11 +71,13 @@ class ClashStoreAnalyzer:
             target_width: Breite für die Normalisierung (Standart: 1080px).
             config_path: Seltenheit aller Karten und Preise im Shop.
             number_template_dir: Directionary mit den Mengen-Templates
-                (Dateiname "x<Menge>.png", z.B. "x80.png").
+                (Dateiname "x<Menge>.png", z.B. "x80.png") sowie den
+                Status-Templates "collected.png" und "free!.png".
         """
         self.target_width = target_width
         self.template = {}
         self.number_templates = {}
+        self.status_templates = {}
 
         with open(config_path, "r") as f:
             data = json.load(f)
@@ -100,6 +115,17 @@ class ClashStoreAnalyzer:
                     self.number_templates[int(value_str)] = img
 
         print(f"{len(self.number_templates)} Mengen-Templates in RAM geladen.")
+
+        # 3. Status-Templates laden (Collected!/FREE!, zeigen "kostenlos" an)
+        status_files = {"collected": "collected.png", "free": "free!.png"}
+        for status, filename in status_files.items():
+            filepath = os.path.join(number_template_dir, filename)
+            if os.path.exists(filepath):
+                img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    self.status_templates[status] = img
+
+        print(f"{len(self.status_templates)} Status-Templates in RAM geladen.")
 
     def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Bringt das Bild auf Standartgröße und Graustufen.
@@ -170,6 +196,34 @@ class ClashStoreAnalyzer:
 
         return 0
 
+    def is_free(self, status_search_gray: np.ndarray) -> bool:
+        """Prüft, ob die Kachel als kostenlos markiert ist.
+
+        Erkennt die Banner "Collected!" (bereits abgeholt/gekauft) und
+        "FREE!" (Gratis-Angebot), die anstelle des Goldpreises stehen.
+
+        Args:
+            status_search_gray: Graustufen-Suchbereich an der Stelle des
+                Goldpreises unterhalb der Karte.
+
+        Returns:
+            True, wenn eines der Status-Banner erkannt wurde.
+        """
+        for template in self.status_templates.values():
+            if (
+                template.shape[0] > status_search_gray.shape[0]
+                or template.shape[1] > status_search_gray.shape[1]
+            ):
+                continue
+
+            res = cv2.matchTemplate(status_search_gray, template, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, _ = cv2.minMaxLoc(res)
+
+            if max_val >= self._STATUS_MATCH_THRESHOLD:
+                return True
+
+        return False
+
     def calculate_price(self, card_name: str, count: int) -> int:
         """Berechnet den Preis der Karte anhand ihrer Anzahl und Seltenheit.
 
@@ -224,6 +278,13 @@ class ClashStoreAnalyzer:
                 count_val = self.match_count(search_zone_gray)
                 calculated_price = self.calculate_price(card_name, count_val)
 
+                # Suchbereich für Collected!/FREE! an Stelle des Goldpreises
+                sty0, sty1 = self._STATUS_SEARCH_Y
+                stx0, stx1 = self._STATUS_SEARCH_X
+                status_zone = img_color_scaled[y + sty0 : y + sty1, x + stx0 : x + stx1]
+                status_zone_gray = cv2.cvtColor(status_zone, cv2.COLOR_BGR2GRAY)
+                free = self.is_free(status_zone_gray)
+
                 # Ergebnise an result anhängen
                 results.append(
                     {
@@ -231,6 +292,7 @@ class ClashStoreAnalyzer:
                         "count": count_val,
                         "calculated_price": calculated_price,
                         "rarity": self.rarities[card_name],
+                        "free": free,
                     }
                 )
         return results
