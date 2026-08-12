@@ -5,7 +5,6 @@ import os
 
 import cv2
 import numpy as np
-import pytesseract
 
 
 def _compute_price(unit_price: int, count: int) -> int:
@@ -34,14 +33,23 @@ class ClashStoreAnalyzer:
 
     Attributes:
         template: Graustufen-Bild eines Templates einer Karte.
+        number_templates: Graustufen-Template je bekannter Store-Menge
+            (z.B. 80 -> Template von "x80"), fürs Erkennen der Anzahl.
         target_width: Die Standartbreite, auf die alle Bilder skaliert werden.
     """
+
+    # Suchbereich unterhalb der Karte, in dem die Mengen-Templates gesucht
+    # werden (relativ zur oberen linken Ecke des Karten-Treffers).
+    _COUNT_SEARCH_Y = (170, 270)
+    _COUNT_SEARCH_X = (0, 260)
+    _COUNT_MATCH_THRESHOLD = 0.85
 
     def __init__(
         self,
         template_dir: str,
         target_width: int = 1080,
         config_path: str = "cards.json",
+        number_template_dir: str = "templates/numbers",
     ):
         """Initialisiert den Analyzer mit einem Template.
 
@@ -49,9 +57,12 @@ class ClashStoreAnalyzer:
             template_dir: Directionary mit den Templates.
             target_width: Breite für die Normalisierung (Standart: 1080px).
             config_path: Seltenheit aller Karten und Preise im Shop.
+            number_template_dir: Directionary mit den Mengen-Templates
+                (Dateiname "x<Menge>.png", z.B. "x80.png").
         """
         self.target_width = target_width
         self.template = {}
+        self.number_templates = {}
 
         with open(config_path, "r") as f:
             data = json.load(f)
@@ -74,6 +85,22 @@ class ClashStoreAnalyzer:
 
         print(f"{len(self.template)} Templates in RAM geladen.")
 
+        # 2. Mengen-Templates laden (Dateiname "x<Menge>.png")
+        if not os.path.exists(number_template_dir):
+            raise FileNotFoundError(f"Ordner nicht gefunden: {number_template_dir}")
+
+        for filename in os.listdir(number_template_dir):
+            if filename.startswith("x") and filename.endswith(".png"):
+                value_str = filename[1:-4]
+                if not value_str.isdigit():
+                    continue
+                filepath = os.path.join(number_template_dir, filename)
+                img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    self.number_templates[int(value_str)] = img
+
+        print(f"{len(self.number_templates)} Mengen-Templates in RAM geladen.")
+
     def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Bringt das Bild auf Standartgröße und Graustufen.
 
@@ -92,47 +119,37 @@ class ClashStoreAnalyzer:
         )
         return cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY), resized
 
-    def read_number_from_zone(self, zone_img: np.ndarray) -> int:
-        """Bereitet einen Bildausschnitt für OCR vor und extrahiert die Zahl.
+    def match_count(self, search_zone_gray: np.ndarray) -> int:
+        """Ermittelt die Store-Menge per Template-Matching.
+
+        Template matching der z.B. x80 gegen großes Suchfeld, die höchste konfidenz gewinnt
 
         Args:
-            zone_img: Der Farbausschnitt
+            search_zone_gray: Graustufen-Suchbereich unterhalb der Karte.
 
         Returns:
-            Die erkannte Zahl als Integer oder 0 bei Fehler.
+            Die erkannte Menge, oder 0 wenn keine Menge sicher genug
+            erkannt wurde.
         """
+        best_value = 0
+        best_score = 0.0
 
-        # 1. Vergrößern
-        resized = cv2.resize(zone_img, None, fx=3, fy=3, interpolation=cv2.INTER_LINEAR)
+        for value, template in self.number_templates.items():
+            if (
+                template.shape[0] > search_zone_gray.shape[0]
+                or template.shape[1] > search_zone_gray.shape[1]
+            ):
+                continue
 
-        # 2. Farbmaske: Die Anzahl ist immer weiß mit schwarzer Umrandung,
-        # unabhängig vom Kartenhintergrund. Graustufen-Otsu scheitert daran,
-        # dass der Hintergrund pro Karte stark variiert.
-        white_mask = cv2.inRange(resized, (170, 170, 170), (255, 255, 255))
-        kernel = np.ones((3, 3), np.uint8)
-        digit_mask = cv2.morphologyEx(white_mask, cv2.MORPH_CLOSE, kernel)
+            res = cv2.matchTemplate(search_zone_gray, template, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, _ = cv2.minMaxLoc(res)
 
-        # 3. OCR
-        tesseract_ready = cv2.bitwise_not(digit_mask)
+            if max_val > best_score:
+                best_score = max_val
+                best_value = value
 
-        padded_img = cv2.copyMakeBorder(
-            tesseract_ready,
-            top=20,
-            bottom=20,
-            left=20,
-            right=20,
-            borderType=cv2.BORDER_CONSTANT,
-            value=[255, 255, 255],
-        )
-
-        custom_config = r"--psm 7 -c tessedit_char_whitelist=0123456789x"
-        text = pytesseract.image_to_string(padded_img, config=custom_config)
-
-        # 4. Bereinigung: Aus "x80" mach "80"
-        numbers_only = "".join(filter(str.isdigit, text))
-
-        if numbers_only:
-            return int(numbers_only)
+        if best_score >= self._COUNT_MATCH_THRESHOLD:
+            return best_value
         return 0
 
     def calculate_price(self, card_name: str, count: int) -> int:
@@ -180,11 +197,13 @@ class ClashStoreAnalyzer:
             if max_val >= 0.8:
                 x, y = max_loc
 
-                # Zonen zum lesen
-                count_zone = img_color_scaled[y + 188 : y + 255, x + 62 : x + 185]
+                # Suchbereich für die Mengen-Templates unterhalb der Karte
+                sy0, sy1 = self._COUNT_SEARCH_Y
+                sx0, sx1 = self._COUNT_SEARCH_X
+                search_zone = img_color_scaled[y + sy0 : y + sy1, x + sx0 : x + sx1]
+                search_zone_gray = cv2.cvtColor(search_zone, cv2.COLOR_BGR2GRAY)
 
-                # OCR
-                count_val = self.read_number_from_zone(count_zone)
+                count_val = self.match_count(search_zone_gray)
                 calculated_price = self.calculate_price(card_name, count_val)
 
                 # Ergebnise an result anhängen
