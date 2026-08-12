@@ -3,7 +3,7 @@ import cv2
 
 def main():
     # Lade dein Bild
-    img = cv2.imread("0clashtest.jpg")
+    img = cv2.imread("shop_pictures/2.jpeg")
 
     def show_coordinates(event, x, y, flags, param):
         if event == cv2.EVENT_MOUSEMOVE:

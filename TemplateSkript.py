@@ -33,7 +33,7 @@ def create_normalized_template(
 
     # 3. Als Graustufen-PNG speichern für deine App
     # template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite(f"templates/cards/{troop_name}.png", template)
+    cv2.imwrite(f"templates/numbers/{troop_name}.png", template)
     print(f"Neues Template '{troop_name}.png' wurde erstellt.")
     cv2.imshow(troop_name, template)
     cv2.waitKey(0)
@@ -46,27 +46,24 @@ def main():
     # Second Row, x = 432
     # Third Row, x = 777
     # Offset first to second row, y = y + 669
+    # number width = 46  2:92  3:138  4:170
+    # number height = 64
 
-    temp = 510 + 240
-    shop_path = "shop_pictures/2.jpeg"
+    temp = 952 + 240
+    shop_path = "shop_pictures/3.jpeg"
 
     # Slot 1
-    # create_normalized_template(shop_path, "gold_chest", x=85, y=temp, w=208, h=188)
+    #create_normalized_template(shop_path, "zahl", x=125, y=985, w=125, h=64)
     # Slot 2
-    # create_normalized_template(shop_path, "gold_chest", x=432, y=temp, w=208, h=188)
+    #create_normalized_template(shop_path, "zahl", x=466, y=760, w=138, h=64)
     # Slot 3
-    # create_normalized_template(shop_path, "void", x=777, y=temp, w=208, h=188)
+    #create_normalized_template(shop_path, "zahl", x=810, y=760, w=138, h=64)
     # Slot 4
-    create_normalized_template(shop_path, "guards", x=85, y=temp + 669, w=208, h=188)
+    #create_normalized_template(shop_path, "zahl", x=140, y=940 + 669, w=92, h=64)
     # Slot 5
-    # create_normalized_template(
-    #     shop_path, "mother_witch", x=432, y=temp + 669, w=208, h=188
-    # )
+    #create_normalized_template(shop_path, "zahl", x=488, y=870 + 669, w=92, h=64)
     # Slot 6
-    # create_normalized_template(shop_path, "sparky", x=777, y=temp + 669, w=208, h=188)
-
-    # 765
-
+    #create_normalized_template(shop_path, "zahl", x=840, y=857 + 669, w=80, h=60)
 
 if __name__ == "__main__":
     main()
