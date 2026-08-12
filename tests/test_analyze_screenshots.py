@@ -152,6 +152,41 @@ class TestAnalyzeScreenshots(unittest.TestCase):
 
         self.assertEqual(results, [])
 
+    def test_multiple_cards_are_all_detected(self):
+        analyzer, template_dir, config_path = _make_analyzer(
+            extra_rarities={"card_a": "common", "card_b": "rare"}
+        )
+        card_a = _random_pattern(100, 120, seed=50)
+        card_b = _random_pattern(100, 120, seed=51)
+        count_a = _random_pattern(60, 80, seed=52)
+        count_b = _random_pattern(60, 80, seed=53)
+        analyzer.template = {"card_a": card_a, "card_b": card_b}
+        analyzer.number_templates = {5: count_a, 10: count_b}
+        analyzer.status_templates = {}
+
+        # Zwei Karten weit auseinander im selben Screenshot platzieren,
+        # jede mit eigenem Mengen-Template in ihrem Suchbereich.
+        canvas = _random_pattern(750, 1080, seed=54)
+        canvas = _embed(canvas, card_a, row=50, col=50)
+        canvas = _embed(canvas, count_a, row=230, col=60)
+        canvas = _embed(canvas, card_b, row=400, col=600)
+        canvas = _embed(canvas, count_b, row=580, col=610)
+        image_path = _write_temp_png(canvas)
+
+        try:
+            results = analyzer.analyze_screenshots(image_path)
+        finally:
+            os.unlink(image_path)
+            os.unlink(config_path)
+            os.rmdir(template_dir)
+
+        results_by_name = {r["card_name"]: r for r in results}
+        self.assertEqual(set(results_by_name), {"card_a", "card_b"})
+        self.assertEqual(results_by_name["card_a"]["count"], 5)
+        self.assertEqual(results_by_name["card_a"]["calculated_price"], 50)
+        self.assertEqual(results_by_name["card_b"]["count"], 10)
+        self.assertEqual(results_by_name["card_b"]["calculated_price"], 500)
+
 
 if __name__ == "__main__":
     unittest.main()

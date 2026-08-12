@@ -30,6 +30,10 @@ class TestNumberAndStatusTemplateLoading(unittest.TestCase):
         for filename in ["collected.png", "free!.png"]:
             cv2.imwrite(os.path.join(self.number_template_dir, filename), pattern)
 
+        cv2.imwrite(os.path.join(self.template_dir, "knight.png"), pattern)
+        with open(os.path.join(self.template_dir, "readme.txt"), "w") as f:
+            f.write("keine Bilddatei")
+
     def tearDown(self):
         os.unlink(self.config_file.name)
         shutil.rmtree(self.template_dir)
@@ -50,6 +54,14 @@ class TestNumberAndStatusTemplateLoading(unittest.TestCase):
             number_template_dir=self.number_template_dir,
         )
         self.assertEqual(set(analyzer.status_templates.keys()), {"collected", "free"})
+
+    def test_loads_card_templates(self):
+        analyzer = ClashStoreAnalyzer(
+            template_dir=self.template_dir,
+            config_path=self.config_file.name,
+            number_template_dir=self.number_template_dir,
+        )
+        self.assertEqual(set(analyzer.template.keys()), {"knight"})
 
     def test_missing_number_template_dir_raises(self):
         with self.assertRaises(FileNotFoundError):
