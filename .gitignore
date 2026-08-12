@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# uv-verwaltete virtuelle Umgebung
+.venv/
+
+# Tool-Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+
+# JetBrains-IDE (lokale Einstellungen, nicht Teil des Projekts)
+.idea/
+
+# Projekt-spezifisch
+.env
+CLAUDE.md
+Hausarbeit/
