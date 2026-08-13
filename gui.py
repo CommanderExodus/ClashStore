@@ -70,7 +70,7 @@ class ClashStoreApp:
         sidebar.pack(side="left", fill="y")
 
         ttk.Label(sidebar, text="Upload", font=("", 12, "bold")).pack(anchor="w")
-        ttk.Button(sidebar, text="Screenshot hochladen", command=self._on_upload).pack(
+        ttk.Button(sidebar, text="Screenshots hochladen", command=self._on_upload).pack(
             fill="x", pady=(4, 20)
         )
 
@@ -187,20 +187,30 @@ class ClashStoreApp:
         self.history_table.pack(fill="both", expand=True)
 
     def _on_upload(self) -> None:
-        """Lässt den Nutzer einen Screenshot wählen, analysiert und speichert ihn."""
-        path = filedialog.askopenfilename(
-            title="Screenshot auswählen",
+        """Lässt den Nutzer einen oder mehrere Screenshots wählen und speichert sie.
+
+        Screenshots, bei denen die Analyse fehlschlägt (z.B. kein lesbares
+        Bild), werden übersprungen statt die ganze Auswahl abzubrechen; am
+        Ende wird eine Sammel-Fehlermeldung für alle fehlgeschlagenen
+        Dateien gezeigt.
+        """
+        paths = filedialog.askopenfilenames(
+            title="Screenshots auswählen",
             filetypes=[("Bilder", "*.jpg *.jpeg *.png"), ("Alle Dateien", "*.*")],
         )
-        if not path:
+        if not paths:
             return
 
-        try:
-            offers = self.analyzer.analyze_screenshots(path)
-            save_offers(DB_PATH, offers, path)
-        except Exception as e:
-            messagebox.showerror("Fehler bei der Analyse", str(e))
-            return
+        errors: list[str] = []
+        for path in paths:
+            try:
+                offers = self.analyzer.analyze_screenshots(path)
+                save_offers(DB_PATH, offers, path)
+            except Exception as e:
+                errors.append(f"{path}: {e}")
+
+        if errors:
+            messagebox.showerror("Fehler bei der Analyse", "\n".join(errors))
 
         self._refresh()
 
