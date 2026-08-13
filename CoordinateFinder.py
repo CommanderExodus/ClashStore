@@ -8,12 +8,14 @@ TemplateSkript.py zu ermitteln.
 import cv2
 
 
-def main():
+def main() -> None:
     """Öffnet das Referenzbild und startet den interaktiven Koordinaten-Picker."""
     # Lade dein Bild
     img = cv2.imread("shop_pictures/2.jpeg")
+    if img is None:
+        raise FileNotFoundError("Referenzbild nicht gefunden: shop_pictures/2.jpeg")
 
-    def show_coordinates(event, x, y, flags, param):
+    def show_coordinates(event: int, x: int, y: int, flags: int, param: object) -> None:
         """Maus-Callback: zeigt die Koordinate im Bild und loggt sie bei Klick.
 
         Args:

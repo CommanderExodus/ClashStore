@@ -26,7 +26,10 @@ def _write_temp_png(canvas: np.ndarray) -> str:
 
 
 def _make_screenshot_file(
-    card_template: np.ndarray, card_row: int, card_col: int, patches: list
+    card_template: np.ndarray,
+    card_row: int,
+    card_col: int,
+    patches: list[tuple[np.ndarray, int, int]],
 ) -> str:
     """Baut einen synthetischen Screenshot als temporäre PNG-Datei.
 
@@ -54,18 +57,18 @@ def _make_screenshot_file(
 class TestAnalyzeScreenshots(unittest.TestCase):
     """Tests für ClashStoreAnalyzer.analyze_screenshots."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.analyzer, self.template_dir, self.config_path = _make_analyzer()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         os.unlink(self.config_path)
         os.rmdir(self.template_dir)
 
-    def test_missing_image_raises(self):
+    def test_missing_image_raises(self) -> None:
         with self.assertRaises(FileNotFoundError):
             self.analyzer.analyze_screenshots("/bild/existiert/nicht.jpg")
 
-    def test_happy_path_finds_card_and_calculates_price(self):
+    def test_happy_path_finds_card_and_calculates_price(self) -> None:
         analyzer, template_dir, config_path = _make_analyzer(
             extra_rarities={"testcard": "common"}
         )
@@ -100,7 +103,7 @@ class TestAnalyzeScreenshots(unittest.TestCase):
             },
         )
 
-    def test_happy_path_marks_collected_card_as_free(self):
+    def test_happy_path_marks_collected_card_as_free(self) -> None:
         analyzer, template_dir, config_path = _make_analyzer(
             extra_rarities={"testcard": "common"}
         )
@@ -130,7 +133,7 @@ class TestAnalyzeScreenshots(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertTrue(results[0]["free"])
 
-    def test_card_below_threshold_is_not_included(self):
+    def test_card_below_threshold_is_not_included(self) -> None:
         analyzer, template_dir, config_path = _make_analyzer(
             extra_rarities={"testcard": "common"}
         )
@@ -152,7 +155,7 @@ class TestAnalyzeScreenshots(unittest.TestCase):
 
         self.assertEqual(results, [])
 
-    def test_multiple_cards_are_all_detected(self):
+    def test_multiple_cards_are_all_detected(self) -> None:
         analyzer, template_dir, config_path = _make_analyzer(
             extra_rarities={"card_a": "common", "card_b": "rare"}
         )

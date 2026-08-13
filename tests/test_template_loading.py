@@ -15,7 +15,7 @@ from main import ClashStoreAnalyzer
 class TestNumberAndStatusTemplateLoading(unittest.TestCase):
     """Tests fürs Laden der Mengen- und Status-Templates in __init__."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.template_dir = tempfile.mkdtemp()
         self.number_template_dir = tempfile.mkdtemp()
         self.config_file = tempfile.NamedTemporaryFile(
@@ -34,12 +34,12 @@ class TestNumberAndStatusTemplateLoading(unittest.TestCase):
         with open(os.path.join(self.template_dir, "readme.txt"), "w") as f:
             f.write("keine Bilddatei")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         os.unlink(self.config_file.name)
         shutil.rmtree(self.template_dir)
         shutil.rmtree(self.number_template_dir)
 
-    def test_loads_only_valid_number_templates(self):
+    def test_loads_only_valid_number_templates(self) -> None:
         analyzer = ClashStoreAnalyzer(
             template_dir=self.template_dir,
             config_path=self.config_file.name,
@@ -47,7 +47,7 @@ class TestNumberAndStatusTemplateLoading(unittest.TestCase):
         )
         self.assertEqual(set(analyzer.number_templates.keys()), {5, 50})
 
-    def test_loads_status_templates(self):
+    def test_loads_status_templates(self) -> None:
         analyzer = ClashStoreAnalyzer(
             template_dir=self.template_dir,
             config_path=self.config_file.name,
@@ -55,7 +55,7 @@ class TestNumberAndStatusTemplateLoading(unittest.TestCase):
         )
         self.assertEqual(set(analyzer.status_templates.keys()), {"collected", "free"})
 
-    def test_loads_card_templates(self):
+    def test_loads_card_templates(self) -> None:
         analyzer = ClashStoreAnalyzer(
             template_dir=self.template_dir,
             config_path=self.config_file.name,
@@ -63,7 +63,7 @@ class TestNumberAndStatusTemplateLoading(unittest.TestCase):
         )
         self.assertEqual(set(analyzer.template.keys()), {"knight"})
 
-    def test_missing_number_template_dir_raises(self):
+    def test_missing_number_template_dir_raises(self) -> None:
         with self.assertRaises(FileNotFoundError):
             ClashStoreAnalyzer(
                 template_dir=self.template_dir,

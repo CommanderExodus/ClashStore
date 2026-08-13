@@ -10,14 +10,14 @@ from helpers import _embed, _make_analyzer, _random_pattern
 class TestIsFree(unittest.TestCase):
     """Tests für ClashStoreAnalyzer.is_free."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.analyzer, self.template_dir, self.config_path = _make_analyzer()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         os.unlink(self.config_path)
         os.rmdir(self.template_dir)
 
-    def test_detects_collected_banner(self):
+    def test_detects_collected_banner(self) -> None:
         banner = _random_pattern(50, 150, seed=10)
         self.analyzer.status_templates = {"collected": banner}
 
@@ -26,7 +26,7 @@ class TestIsFree(unittest.TestCase):
 
         self.assertTrue(self.analyzer.is_free(canvas))
 
-    def test_returns_false_without_banner(self):
+    def test_returns_false_without_banner(self) -> None:
         banner = _random_pattern(50, 150, seed=10)
         self.analyzer.status_templates = {"collected": banner}
 
@@ -34,7 +34,7 @@ class TestIsFree(unittest.TestCase):
 
         self.assertFalse(self.analyzer.is_free(canvas))
 
-    def test_score_exactly_at_threshold_counts_as_match(self):
+    def test_score_exactly_at_threshold_counts_as_match(self) -> None:
         # Grenzfall: der Vergleich in is_free ist ">=", nicht ">". Da sich
         # eine echte Pixel-Korrelation nicht auf einen exakten Float-Wert
         # erzwingen lässt, wird cv2.minMaxLoc gemockt.
@@ -48,7 +48,7 @@ class TestIsFree(unittest.TestCase):
 
         self.assertTrue(result)
 
-    def test_score_just_below_threshold_is_not_a_match(self):
+    def test_score_just_below_threshold_is_not_a_match(self) -> None:
         banner = _random_pattern(50, 150, seed=10)
         self.analyzer.status_templates = {"collected": banner}
         canvas = _random_pattern(200, 300, seed=11)

@@ -16,7 +16,7 @@ def create_normalized_template(
     w: int,
     h: int,
     target_width: int = 1080,
-):
+) -> None:
     """Skaliert ein Bild und schneidet ein Template aus.
 
     Args:
@@ -47,7 +47,7 @@ def create_normalized_template(
     cv2.destroyAllWindows()
 
 
-def main():
+def main() -> None:
     """Schneidet die unten konfigurierten Templates aus dem Referenzbild aus."""
     # Template w = 208, h = 188
     # First Row, x = 85

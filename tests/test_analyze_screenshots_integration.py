@@ -9,7 +9,7 @@ mit synthetischen Templates allein nicht aufgefallen wären.
 
 import unittest
 
-from main import ClashStoreAnalyzer
+from main import ClashStoreAnalyzer, ShopOffer
 
 # (Screenshot, Kartenname, erwartete Menge) - manuell aus den Screenshots
 # abgelesene Ground Truth, siehe Session-Verlauf.
@@ -26,17 +26,20 @@ GROUND_TRUTH = [
 class TestAnalyzeScreenshotsIntegration(unittest.TestCase):
     """Integrationstest mit echten Templates und Screenshots."""
 
+    analyzer: ClashStoreAnalyzer
+    results_by_image: dict[str, list[ShopOffer]]
+
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         cls.analyzer = ClashStoreAnalyzer(template_dir="templates/cards")
-        cls.results_by_image: dict[str, list[dict]] = {}
+        cls.results_by_image = {}
         for image_path, _, _ in GROUND_TRUTH:
             if image_path not in cls.results_by_image:
                 cls.results_by_image[image_path] = cls.analyzer.analyze_screenshots(
                     image_path
                 )
 
-    def test_known_cards_are_detected_with_correct_count(self):
+    def test_known_cards_are_detected_with_correct_count(self) -> None:
         for image_path, card_name, expected_count in GROUND_TRUTH:
             with self.subTest(image=image_path, card=card_name):
                 results = self.results_by_image[image_path]
@@ -44,9 +47,10 @@ class TestAnalyzeScreenshotsIntegration(unittest.TestCase):
                 self.assertIsNotNone(
                     found, f"{card_name} nicht in {image_path} erkannt"
                 )
+                assert found is not None  # für mypy, s.o. bereits per assert geprüft
                 self.assertEqual(found["count"], expected_count)
 
-    def test_detected_cards_have_valid_rarity_and_price(self):
+    def test_detected_cards_have_valid_rarity_and_price(self) -> None:
         for results in self.results_by_image.values():
             for result in results:
                 self.assertIn(result["rarity"], self.analyzer.prices)

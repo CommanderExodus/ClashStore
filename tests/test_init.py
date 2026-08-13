@@ -11,7 +11,7 @@ from main import ClashStoreAnalyzer
 class TestInit(unittest.TestCase):
     """Tests für ClashStoreAnalyzer.__init__."""
 
-    def test_missing_template_dir_raises(self):
+    def test_missing_template_dir_raises(self) -> None:
         config_file = tempfile.NamedTemporaryFile(
             suffix=".json", delete=False, mode="w"
         )
@@ -26,7 +26,7 @@ class TestInit(unittest.TestCase):
         finally:
             os.unlink(config_file.name)
 
-    def test_missing_config_raises(self):
+    def test_missing_config_raises(self) -> None:
         template_dir = tempfile.mkdtemp()
         try:
             with self.assertRaises(FileNotFoundError):

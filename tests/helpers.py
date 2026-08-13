@@ -9,7 +9,8 @@ from main import ClashStoreAnalyzer
 
 
 def _make_analyzer(
-    extra_rarities: dict | None = None, extra_prices: dict | None = None
+    extra_rarities: dict[str, str] | None = None,
+    extra_prices: dict[str, int] | None = None,
 ) -> tuple[ClashStoreAnalyzer, str, str]:
     """Erstellt einen Analyzer mit temporären Testdateien.
 
