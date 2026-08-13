@@ -1,21 +1,13 @@
 """Tests für ClashStoreAnalyzer.is_free."""
 
-import os
 import unittest
 from unittest.mock import patch
 
-from helpers import _embed, _make_analyzer, _random_pattern
+from helpers import AnalyzerTestCase, _embed, _random_pattern
 
 
-class TestIsFree(unittest.TestCase):
+class TestIsFree(AnalyzerTestCase):
     """Tests für ClashStoreAnalyzer.is_free."""
-
-    def setUp(self) -> None:
-        self.analyzer, self.template_dir, self.config_path = _make_analyzer()
-
-    def tearDown(self) -> None:
-        os.unlink(self.config_path)
-        os.rmdir(self.template_dir)
 
     def test_detects_collected_banner(self) -> None:
         banner = _random_pattern(50, 150, seed=10)

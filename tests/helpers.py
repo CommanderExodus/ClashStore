@@ -1,7 +1,9 @@
 """Gemeinsame Hilfsfunktionen für die Testsuite."""
 
 import json
+import os
 import tempfile
+import unittest
 
 import numpy as np
 
@@ -39,6 +41,17 @@ def _make_analyzer(
         config_path=config_file.name,
     )
     return analyzer, template_dir, config_file.name
+
+
+class AnalyzerTestCase(unittest.TestCase):
+    """Basis für Tests mit Analyzer-Fixture (setUp/tearDown)."""
+
+    def setUp(self) -> None:
+        self.analyzer, self.template_dir, self.config_path = _make_analyzer()
+
+    def tearDown(self) -> None:
+        os.unlink(self.config_path)
+        os.rmdir(self.template_dir)
 
 
 def _embed(canvas: np.ndarray, patch: np.ndarray, row: int, col: int) -> np.ndarray:

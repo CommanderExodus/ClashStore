@@ -3,18 +3,11 @@
 import os
 import unittest
 
-from helpers import _make_analyzer
+from helpers import AnalyzerTestCase, _make_analyzer
 
 
-class TestCalculatePrice(unittest.TestCase):
+class TestCalculatePrice(AnalyzerTestCase):
     """Tests für ClashStoreAnalyzer.calculate_price."""
-
-    def setUp(self) -> None:
-        self.analyzer, self.template_dir, self.config_path = _make_analyzer()
-
-    def tearDown(self) -> None:
-        os.unlink(self.config_path)
-        os.rmdir(self.template_dir)
 
     def test_common_card(self) -> None:
         self.assertEqual(self.analyzer.calculate_price("knight", 80), 800)

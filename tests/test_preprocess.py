@@ -1,21 +1,13 @@
 """Tests für ClashStoreAnalyzer.preprocess."""
 
-import os
 import unittest
 
 import numpy as np
-from helpers import _make_analyzer
+from helpers import AnalyzerTestCase
 
 
-class TestPreprocess(unittest.TestCase):
+class TestPreprocess(AnalyzerTestCase):
     """Tests für ClashStoreAnalyzer.preprocess."""
-
-    def setUp(self) -> None:
-        self.analyzer, self.template_dir, self.config_path = _make_analyzer()
-
-    def tearDown(self) -> None:
-        os.unlink(self.config_path)
-        os.rmdir(self.template_dir)
 
     def test_output_width_is_1080(self) -> None:
         dummy = np.zeros((1920, 1600, 3), dtype=np.uint8)

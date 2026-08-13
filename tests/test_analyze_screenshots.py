@@ -6,7 +6,7 @@ import unittest
 
 import cv2
 import numpy as np
-from helpers import _embed, _make_analyzer, _random_pattern
+from helpers import AnalyzerTestCase, _embed, _make_analyzer, _random_pattern
 
 
 def _write_temp_png(canvas: np.ndarray) -> str:
@@ -54,15 +54,8 @@ def _make_screenshot_file(
     return _write_temp_png(canvas)
 
 
-class TestAnalyzeScreenshots(unittest.TestCase):
+class TestAnalyzeScreenshots(AnalyzerTestCase):
     """Tests für ClashStoreAnalyzer.analyze_screenshots."""
-
-    def setUp(self) -> None:
-        self.analyzer, self.template_dir, self.config_path = _make_analyzer()
-
-    def tearDown(self) -> None:
-        os.unlink(self.config_path)
-        os.rmdir(self.template_dir)
 
     def test_missing_image_raises(self) -> None:
         with self.assertRaises(FileNotFoundError):
@@ -132,6 +125,9 @@ class TestAnalyzeScreenshots(unittest.TestCase):
 
         self.assertEqual(len(results), 1)
         self.assertTrue(results[0]["free"])
+        # Free/Collected hat nichts gekostet -> einheitlich Preis 0, auch
+        # wenn die zugrunde liegende Seltenheit einen Preis > 0 hätte.
+        self.assertEqual(results[0]["calculated_price"], 0)
 
     def test_card_below_threshold_is_not_included(self) -> None:
         analyzer, template_dir, config_path = _make_analyzer(

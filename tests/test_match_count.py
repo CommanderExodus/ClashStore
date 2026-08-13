@@ -1,21 +1,13 @@
 """Tests für ClashStoreAnalyzer.match_count."""
 
-import os
 import unittest
 from unittest.mock import patch
 
-from helpers import _embed, _make_analyzer, _random_pattern
+from helpers import AnalyzerTestCase, _embed, _random_pattern
 
 
-class TestMatchCount(unittest.TestCase):
+class TestMatchCount(AnalyzerTestCase):
     """Tests für ClashStoreAnalyzer.match_count."""
-
-    def setUp(self) -> None:
-        self.analyzer, self.template_dir, self.config_path = _make_analyzer()
-
-    def tearDown(self) -> None:
-        os.unlink(self.config_path)
-        os.rmdir(self.template_dir)
 
     def test_finds_exact_match(self) -> None:
         template = _random_pattern(60, 80, seed=1)

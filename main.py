@@ -2,10 +2,13 @@
 
 import json
 import os
-from typing import TypedDict
+from collections.abc import Callable
+from typing import NamedTuple, TypedDict, TypeVar
 
 import cv2
 import numpy as np
+
+_K = TypeVar("_K")
 
 
 class ShopOffer(TypedDict):
@@ -16,6 +19,101 @@ class ShopOffer(TypedDict):
     calculated_price: int
     rarity: str
     free: bool
+
+
+class Region(NamedTuple):
+    """Ein rechteckiger Suchbereich relativ zu einer Kartenposition."""
+
+    y0: int
+    y1: int
+    x0: int
+    x1: int
+
+
+def _load_gray_templates(
+    directory: str, key_for_filename: Callable[[str], _K | None]
+) -> dict[_K, np.ndarray]:
+    """Lädt alle .png-Dateien eines Ordners als Graustufen-Templates.
+
+    Gemeinsame Ladelogik für Karten-, Mengen- und Status-Templates, die
+    sich nur darin unterscheiden, wie aus einem Dateinamen der Dict-
+    Schlüssel abgeleitet wird.
+
+    Args:
+        directory: Ordner mit den Template-Bildern (muss existieren).
+        key_for_filename: Wandelt einen Dateinamen (inkl. ".png") in den
+            Dict-Schlüssel um, oder gibt None zurück, um die Datei zu
+            überspringen (z.B. falsches Namensschema).
+
+    Returns:
+        Dict von abgeleitetem Schlüssel auf Graustufen-Bild.
+    """
+    templates: dict[_K, np.ndarray] = {}
+    for filename in os.listdir(directory):
+        if not filename.endswith(".png"):
+            continue
+        key = key_for_filename(filename)
+        if key is None:
+            continue
+        filepath = os.path.join(directory, filename)
+        img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+        if img is not None:
+            templates[key] = img
+    return templates
+
+
+def _number_template_key(filename: str) -> int | None:
+    """Leitet die Store-Menge aus einem Mengen-Template-Dateinamen ab.
+
+    Args:
+        filename: Dateiname inkl. ".png", z.B. "x80.png".
+
+    Returns:
+        Die Menge als int (z.B. 80), oder None, wenn der Dateiname nicht
+        dem Schema "x<Zahl>.png" entspricht (z.B. "collected.png").
+    """
+    if not filename.startswith("x"):
+        return None
+    value_str = filename[1:-4]  # "x80.png" -> "80" (führendes "x", ".png"-Endung ab).
+    return int(value_str) if value_str.isdigit() else None
+
+
+def _score_template(zone_gray: np.ndarray, template: np.ndarray) -> float | None:
+    """Matcht ein Template gegen einen Suchbereich per Kreuzkorrelation.
+
+    Gemeinsame Matching-Logik für match_count() und is_free(), die sich
+    nur darin unterscheiden, WELCHE Templates sie durchprobieren und wie
+    sie die beste Konfidenz auswählen.
+
+    Args:
+        zone_gray: Graustufen-Suchbereich.
+        template: Graustufen-Template, das gesucht wird.
+
+    Returns:
+        Die Konfidenz (TM_CCOEFF_NORMED, bis 1.0), oder None, wenn das
+        Template größer als der Suchbereich ist und daher nicht hineinpasst.
+    """
+    if template.shape[0] > zone_gray.shape[0] or template.shape[1] > zone_gray.shape[1]:
+        return None
+    res = cv2.matchTemplate(zone_gray, template, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, _ = cv2.minMaxLoc(res)
+    return float(max_val)
+
+
+def _slice_gray(img_color: np.ndarray, x: int, y: int, region: Region) -> np.ndarray:
+    """Schneidet einen Suchbereich relativ zu (x, y) aus und macht ihn grau.
+
+    Args:
+        img_color: Das normierte Farbbild (siehe ClashStoreAnalyzer.preprocess).
+        x: X-Offset der Kartenposition im Bild.
+        y: Y-Offset der Kartenposition im Bild.
+        region: Der Suchbereich relativ zu (x, y).
+
+    Returns:
+        Der zugeschnittene Bereich in Graustufen.
+    """
+    zone = img_color[y + region.y0 : y + region.y1, x + region.x0 : x + region.x1]
+    return cv2.cvtColor(zone, cv2.COLOR_BGR2GRAY)
 
 
 def _compute_price(unit_price: int, count: int) -> int:
@@ -61,16 +159,19 @@ class ClashStoreAnalyzer:
         target_width: Die Standartbreite, auf die alle Bilder skaliert werden.
     """
 
+    # Konfidenz-Schwelle fürs Erkennen, DASS eine Karte überhaupt im Bild
+    # ist. Höher als die beiden Schwellen unten, da Kartenkunst deutlich
+    # markanter/eindeutiger ist als die kleinen Zahlen-/Status-Banner.
+    _CARD_MATCH_THRESHOLD = 0.8
+
     # Suchbereich unterhalb der Karte, in dem die Mengen-Templates gesucht
     # werden (relativ zur oberen linken Ecke des Karten-Treffers).
-    _COUNT_SEARCH_Y = (170, 270)
-    _COUNT_SEARCH_X = (0, 260)
+    _COUNT_SEARCH = Region(y0=170, y1=270, x0=0, x1=260)
     _COUNT_MATCH_THRESHOLD = 0.85
 
     # Suchbereich für die Status-Banner (Collected!/FREE!), die weiter
     # unten auf der Kachel sitzen, an der Stelle des Goldpreises.
-    _STATUS_SEARCH_Y = (170, 500)
-    _STATUS_SEARCH_X = (0, 330)
+    _STATUS_SEARCH = Region(y0=170, y1=500, x0=0, x1=330)
     # Deutlich niedriger als _COUNT_MATCH_THRESHOLD: hier geht es nur um
     # "Banner da oder nicht", nicht um die Unterscheidung ähnlicher
     # Templates. Normale (bezahlte) Karten scoren konstant ~0.28, ein
@@ -95,56 +196,35 @@ class ClashStoreAnalyzer:
                 Status-Templates "collected.png" und "free!.png".
         """
         self.target_width = target_width
-        self.template = {}
-        self.number_templates = {}
-        self.status_templates = {}
 
         with open(config_path, "r") as f:
             data = json.load(f)
             self.prices = data["prices"]
             self.rarities = data["rarities"]
 
-        # 1. Templates aus dem Ordner laden
+        # 1. Karten-Templates laden: jede .png zählt, Schlüssel = Dateiname
+        # ohne Endung (z.B. "knight.png" -> "knight").
         if not os.path.exists(template_dir):
             raise FileNotFoundError(f"Ordner nicht gefunden: {template_dir}")
-
-        for filename in os.listdir(template_dir):
-            if filename.endswith(".png"):
-                card_name = os.path.splitext(filename)[0]
-                filepath = os.path.join(template_dir, filename)
-
-                # Bild greyscalen
-                img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
-                if img is not None:
-                    self.template[card_name] = img
-
+        self.template = _load_gray_templates(
+            template_dir, lambda filename: os.path.splitext(filename)[0]
+        )
         print(f"{len(self.template)} Templates in RAM geladen.")
 
-        # 2. Mengen-Templates laden (Dateiname "x<Menge>.png")
+        # 2. Mengen-Templates laden (Dateiname "x<Menge>.png", z.B. "x80.png").
         if not os.path.exists(number_template_dir):
             raise FileNotFoundError(f"Ordner nicht gefunden: {number_template_dir}")
-
-        for filename in os.listdir(number_template_dir):
-            if filename.startswith("x") and filename.endswith(".png"):
-                value_str = filename[1:-4]
-                if not value_str.isdigit():
-                    continue
-                filepath = os.path.join(number_template_dir, filename)
-                img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
-                if img is not None:
-                    self.number_templates[int(value_str)] = img
-
+        self.number_templates = _load_gray_templates(
+            number_template_dir, _number_template_key
+        )
         print(f"{len(self.number_templates)} Mengen-Templates in RAM geladen.")
 
         # 3. Status-Templates laden (Collected!/FREE!, zeigen "kostenlos" an)
-        status_files = {"collected": "collected.png", "free": "free!.png"}
-        for status, filename in status_files.items():
-            filepath = os.path.join(number_template_dir, filename)
-            if os.path.exists(filepath):
-                img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
-                if img is not None:
-                    self.status_templates[status] = img
-
+        # — fest benannte Dateien im selben Ordner wie die Mengen-Templates.
+        status_names = {"collected.png": "collected", "free!.png": "free"}
+        self.status_templates = _load_gray_templates(
+            number_template_dir, status_names.get
+        )
         print(f"{len(self.status_templates)} Status-Templates in RAM geladen.")
 
     def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -227,19 +307,13 @@ class ClashStoreAnalyzer:
             for value, template in self.number_templates.items():
                 if template.shape[1] != width:
                     continue
-                if (
-                    template.shape[0] > search_zone_gray.shape[0]
-                    or template.shape[1] > search_zone_gray.shape[1]
-                ):
+
+                score = _score_template(search_zone_gray, template)
+                if score is None:
                     continue
 
-                res = cv2.matchTemplate(
-                    search_zone_gray, template, cv2.TM_CCOEFF_NORMED
-                )
-                _, max_val, _, _ = cv2.minMaxLoc(res)
-
-                if max_val > best_score:
-                    best_score = max_val
+                if score > best_score:
+                    best_score = score
                     best_value = value
 
             if best_score >= self._COUNT_MATCH_THRESHOLD:
@@ -272,16 +346,8 @@ class ClashStoreAnalyzer:
         assert status_search_gray.ndim == 2, "status_search_gray muss Graustufen sein"
 
         for template in self.status_templates.values():
-            if (
-                template.shape[0] > status_search_gray.shape[0]
-                or template.shape[1] > status_search_gray.shape[1]
-            ):
-                continue
-
-            res = cv2.matchTemplate(status_search_gray, template, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, _ = cv2.minMaxLoc(res)
-
-            if max_val >= self._STATUS_MATCH_THRESHOLD:
+            score = _score_template(status_search_gray, template)
+            if score is not None and score >= self._STATUS_MATCH_THRESHOLD:
                 return True
 
         return False
@@ -344,24 +410,26 @@ class ClashStoreAnalyzer:
             res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
             _, max_val, _, max_loc = cv2.minMaxLoc(res)
 
-            if max_val >= 0.8:
+            if max_val >= self._CARD_MATCH_THRESHOLD:
                 x, y = max_loc
 
                 # Suchbereich für die Mengen-Templates unterhalb der Karte
-                sy0, sy1 = self._COUNT_SEARCH_Y
-                sx0, sx1 = self._COUNT_SEARCH_X
-                search_zone = img_color_scaled[y + sy0 : y + sy1, x + sx0 : x + sx1]
-                search_zone_gray = cv2.cvtColor(search_zone, cv2.COLOR_BGR2GRAY)
-
+                search_zone_gray = _slice_gray(
+                    img_color_scaled, x, y, self._COUNT_SEARCH
+                )
                 count_val = self.match_count(search_zone_gray)
-                calculated_price = self.calculate_price(card_name, count_val)
 
                 # Suchbereich für Collected!/FREE! an Stelle des Goldpreises
-                sty0, sty1 = self._STATUS_SEARCH_Y
-                stx0, stx1 = self._STATUS_SEARCH_X
-                status_zone = img_color_scaled[y + sty0 : y + sty1, x + stx0 : x + stx1]
-                status_zone_gray = cv2.cvtColor(status_zone, cv2.COLOR_BGR2GRAY)
+                status_zone_gray = _slice_gray(
+                    img_color_scaled, x, y, self._STATUS_SEARCH
+                )
                 free = self.is_free(status_zone_gray)
+
+                # Preis trotzdem berechnen (validiert Karte/Seltenheit auch
+                # bei Free-Karten), aber Collected!/FREE! haben nichts
+                # gekostet -> als Preis wird einheitlich 0 gespeichert.
+                price = self.calculate_price(card_name, count_val)
+                calculated_price = 0 if free else price
 
                 # Ergebnise an result anhängen
                 results.append(
