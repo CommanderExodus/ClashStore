@@ -34,6 +34,6 @@ verbose = 1
 exclude = ["tests"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "main.py"]
+testpaths = ["tests", "main.py", "database.py"]
 pythonpath = ["."]
 addopts = "--doctest-modules"
