@@ -3,6 +3,7 @@
 import json
 import os
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import NamedTuple, TypedDict, TypeVar
 
 import cv2
@@ -98,6 +99,29 @@ def _score_template(zone_gray: np.ndarray, template: np.ndarray) -> float | None
     res = cv2.matchTemplate(zone_gray, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, _ = cv2.minMaxLoc(res)
     return float(max_val)
+
+
+def _match_card(
+    img_gray: np.ndarray, template: np.ndarray
+) -> tuple[float, tuple[int, int]]:
+    """Matcht ein einzelnes Karten-Template gegen das gesamte Bild.
+
+    Reine Funktion ohne Seiteneffekte (liest nur img_gray/template) -
+    wird in analyze_screenshots parallel für alle Karten-Templates
+    aufgerufen, da das Matching gegen das volle Bild der mit Abstand
+    teuerste Teil der Analyse ist (siehe Profiling: ~99% der Laufzeit).
+
+    Args:
+        img_gray: Graustufen-Screenshot in voller Größe.
+        template: Graustufen-Template einer Karte.
+
+    Returns:
+        Tupel (beste Konfidenz, (x, y)-Position des besten Treffers).
+    """
+    res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, max_loc = cv2.minMaxLoc(res)
+    x, y = max_loc
+    return float(max_val), (x, y)
 
 
 def _slice_gray(img_color: np.ndarray, x: int, y: int, region: Region) -> np.ndarray:
@@ -196,6 +220,13 @@ class ClashStoreAnalyzer:
                 Status-Templates "collected.png" und "free!.png".
         """
         self.target_width = target_width
+
+        # analyze_screenshots matcht die Karten-Templates parallel über
+        # mehrere Python-Threads (siehe dort). OpenCVs eigene interne
+        # Parallelisierung (standardmäßig ein Thread je CPU-Kern) würde
+        # sonst mit diesen Threads um dieselben Kerne konkurrieren -
+        # daher hier auf einen internen Thread pro Aufruf begrenzt.
+        cv2.setNumThreads(1)
 
         with open(config_path, "r") as f:
             data = json.load(f)
@@ -390,6 +421,11 @@ class ClashStoreAnalyzer:
     def analyze_screenshots(self, image_path: str) -> list[ShopOffer]:
         """Durchsucht das Bild nach allen bekannten Templates und liest die Werte.
 
+        Das Matching der Karten-Templates gegen das volle Bild ist der
+        teuerste Teil (siehe _match_card) und läuft daher über mehrere
+        Threads parallel; alles danach (Mengen/Status/Preis je Treffer)
+        ist billig genug, um sequentiell zu bleiben.
+
         Args:
             image_path: Pfad zum Screenshot
 
@@ -403,13 +439,17 @@ class ClashStoreAnalyzer:
         # preprocess gibt schon greyscaled und skaliertes Bild wieder
         img_gray, img_color_scaled = self.preprocess(raw_img)
 
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            futures = {
+                card_name: executor.submit(_match_card, img_gray, template)
+                for card_name, template in self.template.items()
+            }
+            card_matches = {name: future.result() for name, future in futures.items()}
+
         results: list[ShopOffer] = []
 
         # Überprüfe alle Templates auf dem Screenshot
-        for card_name, template in self.template.items():
-            res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, max_loc = cv2.minMaxLoc(res)
-
+        for card_name, (max_val, max_loc) in card_matches.items():
             if max_val >= self._CARD_MATCH_THRESHOLD:
                 x, y = max_loc
 
