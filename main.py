@@ -2,17 +2,33 @@
 
 import json
 import os
+from typing import TypedDict
 
 import cv2
 import numpy as np
 
 
+class ShopOffer(TypedDict):
+    """Ein einzelnes erkanntes Angebot aus dem Shop-Screenshot."""
+
+    card_name: str
+    count: int
+    calculated_price: int
+    rarity: str
+    free: bool
+
+
 def _compute_price(unit_price: int, count: int) -> int:
     """Berechnet den Gesamtpreis aus Einzelpreis und Anzahl.
 
+    Design by Contract: unit_price und count sind laut Vertrag nie negativ
+    (Aufrufer-Pflicht) und das Ergebnis ist es entsprechend auch nie
+    (Garantie dieser Funktion) — beides wird per assert erzwungen, da eine
+    Verletzung ein Programmierfehler wäre, kein normaler Nutzerfehler.
+
     Args:
-        unit_price: Preis pro Karte in Gold.
-        count: Anzahl der Karten.
+        unit_price: Preis pro Karte in Gold (>= 0).
+        count: Anzahl der Karten (>= 0).
 
     Returns:
         Den berechneten Gesamtpreis in Gold.
@@ -25,7 +41,11 @@ def _compute_price(unit_price: int, count: int) -> int:
         >>> _compute_price(200, 5)
         1000
     """
-    return unit_price * count
+    assert unit_price >= 0, f"unit_price darf nicht negativ sein: {unit_price}"
+    assert count >= 0, f"count darf nicht negativ sein: {count}"
+    result = unit_price * count
+    assert result >= 0, f"Ergebnis darf nicht negativ sein: {result}"
+    return result
 
 
 class ClashStoreAnalyzer:
@@ -135,7 +155,23 @@ class ClashStoreAnalyzer:
 
         Returns:
             Das resized Graustufenbild.
+
+        Examples:
+            >>> import numpy as np
+            >>> analyzer = ClashStoreAnalyzer.__new__(ClashStoreAnalyzer)
+            >>> analyzer.target_width = 1080
+            >>> dummy = np.zeros((1920, 1600, 3), dtype=np.uint8)
+            >>> gray, color = analyzer.preprocess(dummy)
+            >>> color.shape[1]
+            1080
         """
+        assert image.ndim == 3 and image.shape[2] == 3, (
+            "image muss ein BGR-Farbbild sein"
+        )
+        assert self.target_width > 0, (
+            f"target_width muss positiv sein: {self.target_width}"
+        )
+
         height, width = image.shape[:2]
         scale = self.target_width / float(width)
         resized = cv2.resize(
@@ -143,7 +179,11 @@ class ClashStoreAnalyzer:
             (self.target_width, int(height * scale)),
             interpolation=cv2.INTER_AREA,
         )
-        return cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY), resized
+        color_scaled = resized
+        assert color_scaled.shape[1] == self.target_width, (
+            "Ergebnisbreite muss target_width entsprechen"
+        )
+        return cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY), color_scaled
 
     def match_count(self, search_zone_gray: np.ndarray) -> int:
         """Ermittelt die Store-Menge per Template-Matching.
@@ -163,7 +203,18 @@ class ClashStoreAnalyzer:
         Returns:
             Die erkannte Menge, oder 0 wenn keine Menge sicher genug
             erkannt wurde.
+
+        Examples:
+            >>> import numpy as np
+            >>> pattern = np.array([[0, 255], [255, 0]], dtype=np.uint8)
+            >>> analyzer = ClashStoreAnalyzer.__new__(ClashStoreAnalyzer)
+            >>> analyzer.number_templates = {5: pattern}
+            >>> analyzer.match_count(pattern)
+            5
         """
+        assert search_zone_gray.size > 0, "search_zone_gray darf nicht leer sein"
+        assert search_zone_gray.ndim == 2, "search_zone_gray muss Graustufen sein"
+
         widths = sorted(
             {template.shape[1] for template in self.number_templates.values()},
             reverse=True,
@@ -208,7 +259,18 @@ class ClashStoreAnalyzer:
 
         Returns:
             True, wenn eines der Status-Banner erkannt wurde.
+
+        Examples:
+            >>> import numpy as np
+            >>> pattern = np.array([[0, 255], [255, 0]], dtype=np.uint8)
+            >>> analyzer = ClashStoreAnalyzer.__new__(ClashStoreAnalyzer)
+            >>> analyzer.status_templates = {"collected": pattern}
+            >>> analyzer.is_free(pattern)
+            True
         """
+        assert status_search_gray.size > 0, "status_search_gray darf nicht leer sein"
+        assert status_search_gray.ndim == 2, "status_search_gray muss Graustufen sein"
+
         for template in self.status_templates.values():
             if (
                 template.shape[0] > status_search_gray.shape[0]
@@ -227,13 +289,29 @@ class ClashStoreAnalyzer:
     def calculate_price(self, card_name: str, count: int) -> int:
         """Berechnet den Preis der Karte anhand ihrer Anzahl und Seltenheit.
 
+        Design by Contract: card_name darf nicht leer sein und count nicht
+        negativ (Aufrufer-Pflicht, per assert erzwungen). Ist die Karte
+        oder ihre Seltenheit unbekannt, ist das dagegen ein normaler,
+        erwartbarer Fall (z.B. Tippfehler in cards.json) und wird über
+        ValueError behandelt statt über assert.
+
         Args:
             card_name: Der Name der karte
-            count: Die erkannte Anzahl
+            count: Die erkannte Anzahl (>= 0)
 
         Returns:
             Den berechneten Gold-Preis
+
+        Examples:
+            >>> analyzer = ClashStoreAnalyzer.__new__(ClashStoreAnalyzer)
+            >>> analyzer.rarities = {"knight": "common"}
+            >>> analyzer.prices = {"common": 10}
+            >>> analyzer.calculate_price("knight", 80)
+            800
         """
+        assert card_name, "card_name darf nicht leer sein"
+        assert count >= 0, f"count darf nicht negativ sein: {count}"
+
         rarity = self.rarities.get(card_name)
         if not rarity:
             raise ValueError(f"Karte nicht gefunden: {card_name}")
@@ -243,7 +321,7 @@ class ClashStoreAnalyzer:
             raise ValueError(f"Preis für Seltenheit nicht gefunden: {rarity}")
         return _compute_price(unit_price, count)
 
-    def analyze_screenshots(self, image_path: str) -> list[dict]:
+    def analyze_screenshots(self, image_path: str) -> list[ShopOffer]:
         """Durchsucht das Bild nach allen bekannten Templates und liest die Werte.
 
         Args:
@@ -259,7 +337,7 @@ class ClashStoreAnalyzer:
         # preprocess gibt schon greyscaled und skaliertes Bild wieder
         img_gray, img_color_scaled = self.preprocess(raw_img)
 
-        results = []
+        results: list[ShopOffer] = []
 
         # Überprüfe alle Templates auf dem Screenshot
         for card_name, template in self.template.items():
@@ -298,7 +376,7 @@ class ClashStoreAnalyzer:
         return results
 
 
-def main():
+def main() -> None:
     try:
         analyzer = ClashStoreAnalyzer(template_dir="templates/cards")
 
