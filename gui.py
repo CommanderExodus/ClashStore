@@ -8,7 +8,6 @@ from typing import Literal
 from database import StoredOffer, fetch_all_offers, save_offers
 from main import ClashStoreAnalyzer
 from stats import (
-    collected_ratio,
     export_to_csv,
     filter_card_summaries,
     summarize_by_card,
@@ -18,6 +17,12 @@ from stats import (
 
 DB_PATH = "clashstore.db"
 _Anchor = Literal["nw", "n", "ne", "w", "center", "e", "sw", "s", "se"]
+_RARITY_COLORS = {
+    "legendary": "#7f8c8d",
+    "epic": "#9b59b6",
+    "rare": "#e67e22",
+    "common": "#3498db",
+}
 
 
 class ClashStoreApp:
@@ -72,8 +77,6 @@ class ClashStoreApp:
         ttk.Label(sidebar, text="Statistiken", font=("", 12, "bold")).pack(anchor="w")
         self.total_gold_label = ttk.Label(sidebar, text="")
         self.total_gold_label.pack(anchor="w", pady=2)
-        self.collected_label = ttk.Label(sidebar, text="")
-        self.collected_label.pack(anchor="w", pady=2)
         self.last_scan_label = ttk.Label(sidebar, text="")
         self.last_scan_label.pack(anchor="w", pady=(2, 20))
 
@@ -90,19 +93,30 @@ class ClashStoreApp:
         frame = ttk.Frame(parent, padding=10)
         frame.pack(fill="x")
 
+        style = ttk.Style()
+        for rarity, color in _RARITY_COLORS.items():
+            style.configure(f"{rarity}.TFrame", background=color)
+            style.configure(f"{rarity}.TLabel", background=color, foreground="white")
+
         self.rarity_labels: dict[str, tuple[ttk.Label, ttk.Label]] = {}
         rarities = [r["rarity"] for r in summarize_by_rarity([])]
         for col, rarity in enumerate(rarities):
-            panel = ttk.Frame(frame, padding=10, relief="groove")
+            frame_style = f"{rarity}.TFrame" if rarity in _RARITY_COLORS else "TFrame"
+            label_style = f"{rarity}.TLabel" if rarity in _RARITY_COLORS else "TLabel"
+
+            panel = ttk.Frame(frame, padding=10, style=frame_style)
             panel.grid(row=0, column=col, sticky="nsew", padx=5)
             frame.columnconfigure(col, weight=1)
 
-            ttk.Label(panel, text=rarity.capitalize(), font=("", 11, "bold")).pack(
-                anchor="w"
-            )
-            count_label = ttk.Label(panel, text="0 Karten")
+            ttk.Label(
+                panel,
+                text=rarity.capitalize(),
+                font=("", 11, "bold"),
+                style=label_style,
+            ).pack(anchor="w")
+            count_label = ttk.Label(panel, text="0 Karten", style=label_style)
             count_label.pack(anchor="w")
-            gold_label = ttk.Label(panel, text="0 Gold")
+            gold_label = ttk.Label(panel, text="0 Gold", style=label_style)
             gold_label.pack(anchor="w")
             self.rarity_labels[rarity] = (count_label, gold_label)
 
@@ -212,13 +226,7 @@ class ClashStoreApp:
         total_gold = total_gold_spent(self.offers)
         self.total_gold_label.config(text=f"Gold ausgegeben: {total_gold}")
 
-        collected, total = collected_ratio(self.offers)
-        percent = round(100 * collected / total) if total else 0
-        self.collected_label.config(
-            text=f"Kostenlos/Collected: {collected} von {total} ({percent}%)"
-        )
-
-        last_scan = max((o["scanned_at"] for o in self.offers), default="–")
+        last_scan = max((o["scanned_at"] for o in self.offers), default="–")[:10]
         self.last_scan_label.config(text=f"Letzter Scan: {last_scan}")
 
         rarity_summaries = {r["rarity"]: r for r in summarize_by_rarity(self.offers)}
