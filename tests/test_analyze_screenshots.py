@@ -129,6 +129,74 @@ class TestAnalyzeScreenshots(AnalyzerTestCase):
         # wenn die zugrunde liegende Seltenheit einen Preis > 0 hätte.
         self.assertEqual(results[0]["calculated_price"], 0)
 
+    def test_free_epic_card_gets_known_count_of_five(self) -> None:
+        # Beim sonntäglichen Gratis-Epic-Angebot zeigt der Screenshot keine
+        # Mengen-Ziffer mehr (das Collected!/FREE!-Banner ersetzt sie) -
+        # match_count() fände dort nie eine echte Zahl. Ohne Mengen-
+        # Templates liefert match_count() garantiert 0, damit hier nur die
+        # feste Regel (_known_free_count) den Ausschlag geben kann.
+        analyzer, template_dir, config_path = _make_analyzer(
+            extra_rarities={"testcard": "epic"}
+        )
+        card_template = _random_pattern(100, 120, seed=25)
+        collected_template = _random_pattern(50, 150, seed=26)
+        analyzer.template = {"testcard": card_template}
+        analyzer.number_templates = {}
+        analyzer.status_templates = {"collected": collected_template}
+
+        image_path = _make_screenshot_file(
+            card_template,
+            card_row=50,
+            card_col=50,
+            patches=[(collected_template, 320, 10)],
+        )
+        try:
+            results = analyzer.analyze_screenshots(image_path)
+        finally:
+            os.unlink(image_path)
+            os.unlink(config_path)
+            os.rmdir(template_dir)
+
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0]["free"])
+        self.assertEqual(results[0]["count"], 5)
+        self.assertEqual(results[0]["calculated_price"], 0)
+
+    def test_free_common_card_reads_real_count_not_overridden(self) -> None:
+        # Abgrenzung zum vorigen Test: die feste 5er-Regel gilt nur für
+        # Epic. Anders als Epic zeigt der Screenshot bei Common/Rare auch
+        # im Gratis-Zustand weiterhin eine echte Mengen-Ziffer - die muss
+        # match_count() ganz normal lesen, nicht überschrieben bekommen.
+        analyzer, template_dir, config_path = _make_analyzer(
+            extra_rarities={"testcard": "common"}
+        )
+        card_template = _random_pattern(100, 120, seed=27)
+        count_template = _random_pattern(60, 80, seed=29)
+        collected_template = _random_pattern(50, 150, seed=28)
+        analyzer.template = {"testcard": card_template}
+        analyzer.number_templates = {8: count_template}
+        analyzer.status_templates = {"collected": collected_template}
+
+        image_path = _make_screenshot_file(
+            card_template,
+            card_row=50,
+            card_col=50,
+            patches=[
+                (count_template, 180, 10),
+                (collected_template, 320, 10),
+            ],
+        )
+        try:
+            results = analyzer.analyze_screenshots(image_path)
+        finally:
+            os.unlink(image_path)
+            os.unlink(config_path)
+            os.rmdir(template_dir)
+
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0]["free"])
+        self.assertEqual(results[0]["count"], 8)
+
     def test_card_below_threshold_is_not_included(self) -> None:
         analyzer, template_dir, config_path = _make_analyzer(
             extra_rarities={"testcard": "common"}

@@ -170,6 +170,34 @@ def _compute_price(unit_price: int, count: int) -> int:
     return result
 
 
+def _known_free_count(rarity: str) -> int | None:
+    """Liefert die bekannte, feste Menge für kostenlose Angebote einer Seltenheit.
+
+    Bei Collected!/FREE!-Angeboten zeigt der Screenshot keine Ziffer mehr
+    an (das Banner ersetzt den Mengen-Text an dieser Stelle) - match_count()
+    findet dort also nie eine echte Ziffer. Für Epic-Karten ist die Menge
+    beim sonntäglichen Gratis-Angebot aber eine feste, aus dem Spiel
+    bekannte Regel (immer 5 Karten) und lässt sich daher ohne Bilderkennung
+    direkt einsetzen, statt fälschlich bei 0 zu bleiben.
+
+    Args:
+        rarity: Die Seltenheit der Karte.
+
+    Returns:
+        Die bekannte feste Menge, oder None, wenn für diese Seltenheit
+        keine feste Gratis-Menge bekannt ist.
+
+    Examples:
+        >>> _known_free_count("epic")
+        5
+        >>> _known_free_count("common") is None
+        True
+    """
+    if rarity == "epic":
+        return 5
+    return None
+
+
 class ClashStoreAnalyzer:
     """Analysiert Shop-Screenshots, um Langfristige Analysen zu machen.
 
@@ -472,6 +500,16 @@ class ClashStoreAnalyzer:
                     img_color_scaled, x, y, self._STATUS_SEARCH
                 )
                 free = self.is_free(status_zone_gray)
+
+                # Collected!/FREE! ersetzt die Mengen-Ziffer im Screenshot,
+                # match_count() findet dort also nie eine echte Zahl. Für
+                # Seltenheiten mit bekannter fester Gratis-Menge (aktuell
+                # nur Epic, siehe _known_free_count) wird die Menge daher
+                # direkt eingesetzt statt fälschlich bei 0 zu bleiben.
+                if free:
+                    known_count = _known_free_count(self.rarities[card_name])
+                    if known_count is not None:
+                        count_val = known_count
 
                 # Preis trotzdem berechnen (validiert Karte/Seltenheit auch
                 # bei Free-Karten), aber Collected!/FREE! haben nichts
