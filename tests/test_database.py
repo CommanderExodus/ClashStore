@@ -1,8 +1,11 @@
 """Tests für das database-Modul (SQLite-Persistierung)."""
 
 import os
+import sqlite3
 import tempfile
 import unittest
+from datetime import UTC, datetime
+from unittest.mock import patch
 
 from database import fetch_all_offers, init_db, save_offers
 from main import ShopOffer
@@ -60,6 +63,20 @@ class TestDatabase(unittest.TestCase):
         save_offers(self.db_path, [], "shop.png")
         self.assertEqual(fetch_all_offers(self.db_path), [])
 
+    def test_empty_offers_list_does_not_touch_the_database(self) -> None:
+        # Schärfer als test_empty_offers_list_is_a_noop: prüft nicht nur
+        # das Endergebnis (das auch ohne den Guard zufällig gleich wäre,
+        # weil executemany([]) ohnehin ein No-op ist), sondern dass die
+        # Tabelle bei leerer Liste gar nicht erst angelegt wird.
+        save_offers(self.db_path, [], "shop.png")
+
+        with sqlite3.connect(self.db_path) as conn:
+            tables = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='shop_offers'"
+            ).fetchall()
+        self.assertEqual(tables, [])
+
     def test_multiple_runs_are_all_kept_not_overwritten(self) -> None:
         offer_a: ShopOffer = {
             "card_name": "knight",
@@ -96,6 +113,37 @@ class TestDatabase(unittest.TestCase):
         results = fetch_all_offers(self.db_path)
         scanned_ats = [r["scanned_at"] for r in results]
         self.assertEqual(scanned_ats, sorted(scanned_ats))
+
+    def test_fetch_all_offers_breaks_scanned_at_ties_by_insertion_order(self) -> None:
+        # scanned_at hat nur Millisekunden-Auflösung - bei zwei Läufen mit
+        # identischem Zeitstempel muss "id" als Tiebreaker die tatsächliche
+        # Einfügereihenfolge sichern. Ohne datetime zu mocken, lässt sich
+        # ein echter Gleichstand kaum reproduzierbar erzwingen.
+        offer_a: ShopOffer = {
+            "card_name": "aaa_first",
+            "count": 1,
+            "calculated_price": 10,
+            "rarity": "common",
+            "free": False,
+        }
+        offer_b: ShopOffer = {
+            "card_name": "bbb_second",
+            "count": 2,
+            "calculated_price": 20,
+            "rarity": "common",
+            "free": False,
+        }
+        fixed_time = datetime(2026, 1, 1, tzinfo=UTC)
+        with patch("database.datetime") as mock_datetime:
+            mock_datetime.now.return_value = fixed_time
+            save_offers(self.db_path, [offer_a], "shop_run1.png")
+            save_offers(self.db_path, [offer_b], "shop_run2.png")
+
+        results = fetch_all_offers(self.db_path)
+        self.assertEqual(
+            [r["scanned_at"] for r in results], [fixed_time.isoformat()] * 2
+        )
+        self.assertEqual([r["card_name"] for r in results], ["aaa_first", "bbb_second"])
 
 
 if __name__ == "__main__":

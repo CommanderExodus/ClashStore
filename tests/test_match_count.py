@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import patch
 
+import numpy as np
 from helpers import AnalyzerTestCase, _embed, _random_pattern
 
 
@@ -39,10 +40,10 @@ class TestMatchCount(AnalyzerTestCase):
 
         self.assertEqual(self.analyzer.match_count(canvas), 80)
 
-    def test_picks_best_score_within_same_width_group(self) -> None:
-        # Regression: bei gleich breiten Templates (z.B. "x30"/"x50") darf
+    def test_picks_best_score_within_same_digit_count_group(self) -> None:
+        # Regression: bei gleich langen Zahlen (z.B. "x30"/"x50") darf
         # nicht die zufällige Dict-Reihenfolge gewinnen, sondern die
-        # höhere Konfidenz innerhalb der Breiten-Gruppe.
+        # höhere Konfidenz innerhalb der Ziffernanzahl-Gruppe.
         correct = _random_pattern(60, 90, seed=5)
         same_width_decoy = _random_pattern(60, 90, seed=6)
         self.analyzer.number_templates = {30: correct, 50: same_width_decoy}
@@ -51,6 +52,26 @@ class TestMatchCount(AnalyzerTestCase):
         canvas = _embed(canvas, correct, row=10, col=10)
 
         self.assertEqual(self.analyzer.match_count(canvas), 30)
+
+    def test_groups_by_digit_count_not_pixel_width(self) -> None:
+        # Regression: x20/x30-artige Templates können durch manuelles
+        # Zuschneiden leicht unterschiedliche Pixel-Breiten haben, obwohl
+        # beide zweistellig sind. Die Gruppierung muss nach Ziffernanzahl
+        # gehen, nicht nach Pixel-Breite - sonst gewinnt die (zufällig
+        # breitere) falsche Zahl, nur weil ihre Breiten-Gruppe zuerst
+        # geprüft wird, bevor die eigentlich passendere je geprüft wurde.
+        narrow_correct = _random_pattern(60, 90, seed=10)
+        wide_wrong = _random_pattern(60, 95, seed=11)
+        self.analyzer.number_templates = {20: narrow_correct, 30: wide_wrong}
+        canvas = _random_pattern(120, 200, seed=12)
+
+        def fake_score(zone: np.ndarray, template: np.ndarray) -> float:
+            return 0.99 if template is narrow_correct else 0.86
+
+        with patch("main._score_template", side_effect=fake_score):
+            result = self.analyzer.match_count(canvas)
+
+        self.assertEqual(result, 20)
 
     def test_template_larger_than_search_zone_is_skipped(self) -> None:
         template = _random_pattern(60, 80, seed=1)

@@ -191,7 +191,12 @@ class ClashStoreAnalyzer:
     # Suchbereich unterhalb der Karte, in dem die Mengen-Templates gesucht
     # werden (relativ zur oberen linken Ecke des Karten-Treffers).
     _COUNT_SEARCH = Region(y0=170, y1=270, x0=0, x1=260)
-    _COUNT_MATCH_THRESHOLD = 0.85
+    # War 0.85; empirisch gegen alle 181 Test-Screenshots geprüft (siehe
+    # Projektbericht/Commit-Historie): mit der Ziffernanzahl-Gruppierung
+    # (statt Pixel-Breite) behebt 0.8 12 zuvor unerkannte Mengen (45 -> 33
+    # von 984 Erkennungen bleiben 0), ohne eine einzige neue Fehlerkennung
+    # zu verursachen.
+    _COUNT_MATCH_THRESHOLD = 0.8
 
     # Suchbereich für die Status-Banner (Collected!/FREE!), die weiter
     # unten auf der Kachel sitzen, an der Stelle des Goldpreises.
@@ -302,11 +307,15 @@ class ClashStoreAnalyzer:
         Template matching der z.B. x80 gegen großes Suchfeld. Kürzere
         Mengen wie "x8" sind optisch ein Präfix von längeren wie "x80"
         und erreichen dort ebenfalls eine hohe Konfidenz. Deshalb werden
-        die Templates nach Breite (Ziffernanzahl) gruppiert und von der
-        breitesten zur schmalsten Gruppe durchprobiert: Sobald in einer
-        Gruppe eine Menge die Schwelle erreicht, gewinnt die Menge mit
-        der höchsten Konfidenz innerhalb dieser Gruppe — so gewinnt
-        "x80" gegen "x8" und "x30" gegen das gleich breite "x50".
+        die Templates nach Ziffernanzahl (nicht nach Pixel-Breite - beim
+        manuellen Zuschneiden bekommen selbst gleich lange Zahlen wie
+        "x20"/"x30" leicht unterschiedliche Breiten, was sie sonst in
+        unterschiedliche Gruppen und damit in die falsche Prüfreihenfolge
+        gebracht hätte) gruppiert und von der längsten zur kürzesten
+        Gruppe durchprobiert: Sobald in einer Gruppe eine Menge die
+        Schwelle erreicht, gewinnt die Menge mit der höchsten Konfidenz
+        innerhalb dieser Gruppe — so gewinnt "x80" gegen "x8" und "x30"
+        gegen das gleich lange "x50".
 
         Args:
             search_zone_gray: Graustufen-Suchbereich unterhalb der Karte.
@@ -326,17 +335,16 @@ class ClashStoreAnalyzer:
         assert search_zone_gray.size > 0, "search_zone_gray darf nicht leer sein"
         assert search_zone_gray.ndim == 2, "search_zone_gray muss Graustufen sein"
 
-        widths = sorted(
-            {template.shape[1] for template in self.number_templates.values()},
-            reverse=True,
+        digit_counts = sorted(
+            {len(str(value)) for value in self.number_templates}, reverse=True
         )
 
-        for width in widths:
+        for digit_count in digit_counts:
             best_value = 0
             best_score = 0.0
 
             for value, template in self.number_templates.items():
-                if template.shape[1] != width:
+                if len(str(value)) != digit_count:
                     continue
 
                 score = _score_template(search_zone_gray, template)
