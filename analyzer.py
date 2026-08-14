@@ -108,7 +108,7 @@ def _match_card(
 
     Reine Funktion ohne Seiteneffekte (liest nur img_gray/template) -
     wird in analyze_screenshots parallel für alle Karten-Templates
-    aufgerufen..
+    aufgerufen.
 
     Args:
         img_gray: Graustufen-Screenshot in voller Größe.
@@ -216,7 +216,7 @@ class ClashStoreAnalyzer:
     # Suchbereich für die Status-Banner (Collected!/FREE!), die weiter
     # unten auf der Kachel sitzen, an der Stelle des Goldpreises.
     _STATUS_SEARCH = Region(y0=170, y1=500, x0=0, x1=330)
-    # Konfidenz-Schwelle fürs erkenne, ob die Karte kostenlos war,
+    # Konfidenz-Schwelle fürs Erkenne, ob die Karte kostenlos war,
     # niedriger, da nur wichtig ist, ob eines der Symbole erkannt wurde
     # nicht aber wichtig welches der beiden.
     _STATUS_MATCH_THRESHOLD = 0.35
@@ -242,7 +242,7 @@ class ClashStoreAnalyzer:
 
         # analyze_screenshots matcht die Karten-Templates parallel über
         # mehrere Python-Threads. Um Oversubscribtion zwischen Python-Threads
-        # und OpenCVs Multithreading zu verhinder, wird OpenCVs ausgeschaltet.
+        # und OpenCVs Multithreading zu verhindern, wird es ausgeschaltet.
         cv2.setNumThreads(1)
 
         with open(config_path, "r") as f:

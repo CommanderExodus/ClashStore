@@ -290,10 +290,10 @@ class ClashStoreApp:
         self._restripe(self.history_table)
 
     def _configure_stripes(self, tree: ttk.Treeview) -> None:
-        """Rendert abwechselnde Zeilenfarben, damit man Zeilen leichter lesbar sind.
+        """Registriert abwechselnde Zeilenfarben, damit man Zeilen leichter lesbar sind.
 
         Args:
-            tree: Die Tabelle, für die die Streifenfarben gerendert werden.
+            tree: Die Tabelle, für die die Streifenfarben registriert werden.
         """
         tree.tag_configure(_STRIPE_TAGS[0], background="#ffffff")
         tree.tag_configure(_STRIPE_TAGS[1], background="#f0f0f0")
