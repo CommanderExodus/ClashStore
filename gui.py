@@ -8,6 +8,7 @@ from typing import Literal
 from database import StoredOffer, fetch_all_offers, save_offers
 from main import ClashStoreAnalyzer
 from stats import (
+    column_sort_key,
     export_to_csv,
     filter_card_summaries,
     summarize_by_card,
@@ -23,7 +24,6 @@ _RARITY_COLORS = {
     "rare": "#e67e22",
     "common": "#3498db",
 }
-_RARITY_RANK = {rarity: rank for rank, rarity in enumerate(_RARITY_COLORS)}
 _STRIPE_TAGS = ("evenrow", "oddrow")
 
 
@@ -347,13 +347,7 @@ class ClashStoreApp:
         reverse = self._sort_state.get((tree, column), False)
 
         def sort_key(item_id: str) -> tuple[int, float | str]:
-            value = tree.set(item_id, column)
-            if column == "rarity":
-                return (0, float(_RARITY_RANK.get(value, len(_RARITY_RANK))))
-            try:
-                return (0, float(value))
-            except ValueError:
-                return (1, value.lower())
+            return column_sort_key(column, tree.set(item_id, column))
 
         items = sorted(tree.get_children(""), key=sort_key, reverse=reverse)
         for index, item_id in enumerate(items):

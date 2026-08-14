@@ -7,6 +7,7 @@ import unittest
 from database import StoredOffer
 from stats import (
     collected_ratio,
+    column_sort_key,
     export_to_csv,
     filter_card_summaries,
     summarize_by_card,
@@ -189,6 +190,35 @@ class TestExportToCsv(unittest.TestCase):
             lines = f.readlines()
 
         self.assertEqual(len(lines), 1)
+
+
+class TestColumnSortKey(unittest.TestCase):
+    """Tests für column_sort_key."""
+
+    def test_numeric_column_sorts_numerically(self) -> None:
+        values = ["9", "80", "5"]
+        result = sorted(values, key=lambda v: column_sort_key("count", v))
+        self.assertEqual(result, ["5", "9", "80"])
+
+    def test_text_column_sorts_case_insensitively(self) -> None:
+        values = ["Zappies", "archers", "Knight"]
+        result = sorted(values, key=lambda v: column_sort_key("card_name", v))
+        self.assertEqual(result, ["archers", "Knight", "Zappies"])
+
+    def test_rarity_column_sorts_by_rank_not_alphabetically(self) -> None:
+        values = ["common", "legendary", "rare", "epic"]
+        result = sorted(values, key=lambda v: column_sort_key("rarity", v))
+        self.assertEqual(result, ["legendary", "epic", "rare", "common"])
+
+    def test_unknown_rarity_sorts_after_known_ones(self) -> None:
+        values = ["common", "champion"]
+        result = sorted(values, key=lambda v: column_sort_key("rarity", v))
+        self.assertEqual(result, ["common", "champion"])
+
+    def test_numeric_sorts_before_text_when_mixed(self) -> None:
+        numeric_key = column_sort_key("x", "5")
+        text_key = column_sort_key("x", "abc")
+        self.assertLess(numeric_key, text_key)
 
 
 if __name__ == "__main__":

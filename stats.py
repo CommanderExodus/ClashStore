@@ -6,6 +6,7 @@ from typing import TypedDict
 from database import StoredOffer
 
 _RARITY_ORDER = ["legendary", "epic", "rare", "common"]
+_RARITY_RANK = {rarity: rank for rank, rarity in enumerate(_RARITY_ORDER)}
 
 
 class RaritySummary(TypedDict):
@@ -212,3 +213,35 @@ def export_to_csv(offers: list[StoredOffer], path: str) -> None:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(offers)
+
+
+def column_sort_key(column: str, value: str) -> tuple[int, float | str]:
+    """Berechnet den Sortier-Schlüssel für einen rohen Tabellenzellwert.
+
+    Die Seltenheits-Spalte sortiert nach Rang (legendary vor epic vor
+    rare vor common) statt alphabetisch. Numerische Werte werden
+    numerisch sortiert, alles andere als Text (case-insensitive).
+    Unbekannte Seltenheiten landen hinter allen bekannten.
+
+    Args:
+        column: Name der Spalte, aus der value stammt.
+        value: Roher Zellwert als Text (z.B. aus ttk.Treeview.set()).
+
+    Returns:
+        Ein mit sorted() vergleichbares Tupel; numerische und Rang-Werte
+        (erste Position 0) kommen vor Text-Werten (erste Position 1).
+
+    Examples:
+        >>> column_sort_key("rarity", "epic")
+        (0, 1.0)
+        >>> column_sort_key("count", "80")
+        (0, 80.0)
+        >>> column_sort_key("card_name", "Knight")
+        (1, 'knight')
+    """
+    if column == "rarity":
+        return (0, float(_RARITY_RANK.get(value, len(_RARITY_RANK))))
+    try:
+        return (0, float(value))
+    except ValueError:
+        return (1, value.lower())
