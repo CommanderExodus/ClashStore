@@ -15,7 +15,7 @@ class StoredOffer(ShopOffer):
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
-    """Legt die Tabelle shop_offers an, falls sie noch nicht existiert.
+    """Legt die Tabelle shop_offers an, falls noch nicht existent.
 
     Args:
         conn: Offene SQLite-Verbindung.
@@ -37,12 +37,11 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
 
 
 def _row_to_offer(row: tuple[str, str, str, int, int, str, int]) -> StoredOffer:
-    """Wandelt eine SQLite-Ergebniszeile in ein StoredOffer-Dict um.
+    """Verwandelt eine SQLite-Ergebniszeile in ein StoredOffer-Dict.
 
     Args:
-        row: Tupel (scanned_at, source_image, card_name, count,
-            calculated_price, rarity, free) wie von fetch_all_offers
-            selektiert.
+        row: Tupel (scanned_at, source_image, card_name, count, calculated_price,
+        rarity, free) wie von fetch_all_offers bestimmt.
 
     Returns:
         Das entsprechende StoredOffer-Dict, free als bool statt 0/1.

@@ -29,11 +29,10 @@ class CardSummary(TypedDict):
 def summarize_by_rarity(offers: list[StoredOffer]) -> list[RaritySummary]:
     """Summiert Anzahl und Gold je Seltenheitsstufe.
 
-    Läuft über alle Angebote unabhängig von "free" (bei kostenlosen bzw.
-    bereits eingesammelten Angeboten ist calculated_price ohnehin 0). Die
-    vier bekannten Seltenheiten erscheinen immer, auch mit count=0/gold=0,
-    falls sie noch nie vorkamen – damit z.B. das Legendary-Panel in der
-    GUI nie fehlt.
+    Läuft über alle Angebote unabhängig von "free" (bei kostenlosen Angeboten
+    ist calculated_price ohnehin 0). Die vier bekannten Seltenheiten erscheinen
+    immer, auch mit count=0/gold=0, falls sie noch nie vorkamen – damit z.B.
+    das Legendary-Panel in der GUI nie fehlt.
 
     Args:
         offers: Die auszuwertenden, gespeicherten Angebote.
@@ -176,7 +175,7 @@ def collected_ratio(offers: list[StoredOffer]) -> tuple[int, int]:
 
 
 def export_to_csv(offers: list[StoredOffer], path: str) -> None:
-    """Schreibt die rohe Angebots-Historie als CSV-Datei.
+    """Schreibt die Angebots-Historie als CSV-Datei.
 
     Args:
         offers: Die zu exportierenden, gespeicherten Angebote.
@@ -216,12 +215,11 @@ def export_to_csv(offers: list[StoredOffer], path: str) -> None:
 
 
 def column_sort_key(column: str, value: str) -> tuple[int, float | str]:
-    """Berechnet den Sortier-Schlüssel für einen rohen Tabellenzellwert.
+    """Berechnet den Sortier-Schlüssel für einen Tabellenzellwert.
 
-    Die Seltenheits-Spalte sortiert nach Rang (legendary vor epic vor
-    rare vor common) statt alphabetisch. Numerische Werte werden
-    numerisch sortiert, alles andere als Text (case-insensitive).
-    Unbekannte Seltenheiten landen hinter allen bekannten.
+    Die Seltenheits-Spalte sortiert nach Rang statt alphabetisch.
+    Numerische Werte werden numerisch sortiert, alles andere als Text
+    (case-insensitive). Unbekannte Seltenheiten landen hinter allen bekannten.
 
     Args:
         column: Name der Spalte, aus der value stammt.

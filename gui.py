@@ -30,9 +30,8 @@ _STRIPE_TAGS = ("evenrow", "oddrow")
 class ClashStoreApp:
     """Desktop-GUI: Screenshots hochladen, Shop-Historie durchsuchen und auswerten.
 
-    Schließt den Kreislauf, für den database.py gebaut wurde: die Anzeige
-    lädt aus der Datenbank, ein Upload lässt den Analyzer laufen und
-    schreibt zurück in die Datenbank.
+    Schließt den Kreislauf: die Anzeige lädt aus der Datenbank,
+    ein Upload lässt den Analyzer laufen und schreibt zurück in die Datenbank.
     """
 
     def __init__(self, root: tk.Tk) -> None:
@@ -191,10 +190,10 @@ class ClashStoreApp:
         self._configure_stripes(self.history_table)
 
     def _on_upload(self) -> None:
-        """Lässt den Nutzer einen oder mehrere Screenshots wählen und speichert sie.
+        """Lässt den User einen oder mehrere Screenshots wählen und speichert sie.
 
         Screenshots, bei denen die Analyse fehlschlägt (z.B. kein lesbares
-        Bild), werden übersprungen statt die ganze Auswahl abzubrechen; am
+        Bild), werden übersprungen anstatt die ganze Auswahl abzubrechen; am
         Ende wird eine Sammel-Fehlermeldung für alle fehlgeschlagenen
         Dateien gezeigt.
         """
@@ -219,7 +218,7 @@ class ClashStoreApp:
         self._refresh()
 
     def _on_export_csv(self) -> None:
-        """Lässt den Nutzer einen Pfad wählen und exportiert die Historie als CSV."""
+        """Lässt den User einen Pfad wählen und exportiert die Historie als CSV."""
         path = filedialog.asksaveasfilename(
             title="CSV speichern unter",
             defaultextension=".csv",
@@ -253,7 +252,7 @@ class ClashStoreApp:
         self._render_history_table()
 
     def _render_card_table(self) -> None:
-        """Rendert die Pro-Karte-Tabelle, gefiltert nach dem Suchfeld."""
+        """Rendert die pro-Karte-Tabelle, gefiltert nach dem Suchfeld."""
         query = self.search_var.get()
         summaries = filter_card_summaries(summarize_by_card(self.offers), query)
 
@@ -291,10 +290,10 @@ class ClashStoreApp:
         self._restripe(self.history_table)
 
     def _configure_stripes(self, tree: ttk.Treeview) -> None:
-        """Registriert abwechselnde Zeilenfarben, damit man Zeilen leichter folgen kann.
+        """Rendert abwechselnde Zeilenfarben, damit man Zeilen leichter lesbar sind.
 
         Args:
-            tree: Die Tabelle, für die die Streifenfarben registriert werden.
+            tree: Die Tabelle, für die die Streifenfarben gerendert werden.
         """
         tree.tag_configure(_STRIPE_TAGS[0], background="#ffffff")
         tree.tag_configure(_STRIPE_TAGS[1], background="#f0f0f0")
@@ -315,9 +314,7 @@ class ClashStoreApp:
     def _make_sort_handler(self, tree: ttk.Treeview, column: str) -> Callable[[], None]:
         """Baut einen Klick-Handler, der eine Tabelle nach column sortiert.
 
-        Eine echte Funktion statt eines Lambdas mit Default-Argument, damit
-        column pro Spaltenkopf korrekt gebunden bleibt (kein Closure-Bug
-        durch die Schleifenvariable) und mypy --strict den Typ prüfen kann.
+        Eine echte Funktion damit mypy --strict den Typ prüfen kann.
 
         Args:
             tree: Die zu sortierende Tabelle.
@@ -336,9 +333,8 @@ class ClashStoreApp:
         """Sortiert eine Tabelle nach der angeklickten Spalte.
 
         Numerische Spaltenwerte werden numerisch sortiert, die Seltenheits-
-        Spalte nach Rang (legendary vor epic vor rare vor common) statt
-        alphabetisch, alles andere als Text (case-insensitive). Erneutes
-        Klicken kehrt die Richtung um.
+        Spalte nach Rang statt alphabetisch, alles andere als Text (case-insensitive).
+        Erneutes Klicken kehrt die Richtung um.
 
         Args:
             tree: Die zu sortierende Tabelle.

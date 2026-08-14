@@ -75,7 +75,7 @@ def _number_template_key(filename: str) -> int | None:
     """
     if not filename.startswith("x"):
         return None
-    value_str = filename[1:-4]  # "x80.png" -> "80" (führendes "x", ".png"-Endung ab).
+    value_str = filename[1:-4]  # "x80.png" -> "80"
     return int(value_str) if value_str.isdigit() else None
 
 
@@ -83,8 +83,8 @@ def _score_template(zone_gray: np.ndarray, template: np.ndarray) -> float | None
     """Matcht ein Template gegen einen Suchbereich per Kreuzkorrelation.
 
     Gemeinsame Matching-Logik für match_count() und is_free(), die sich
-    nur darin unterscheiden, WELCHE Templates sie durchprobieren und wie
-    sie die beste Konfidenz auswählen.
+    nur darin unterscheiden, WELCHE Templates sie durchprobieren und was
+    die beste Konfidenz ist.
 
     Args:
         zone_gray: Graustufen-Suchbereich.
@@ -108,8 +108,7 @@ def _match_card(
 
     Reine Funktion ohne Seiteneffekte (liest nur img_gray/template) -
     wird in analyze_screenshots parallel für alle Karten-Templates
-    aufgerufen, da das Matching gegen das volle Bild der mit Abstand
-    teuerste Teil der Analyse ist (siehe Profiling: ~99% der Laufzeit).
+    aufgerufen..
 
     Args:
         img_gray: Graustufen-Screenshot in voller Größe.
@@ -143,11 +142,6 @@ def _slice_gray(img_color: np.ndarray, x: int, y: int, region: Region) -> np.nda
 def _compute_price(unit_price: int, count: int) -> int:
     """Berechnet den Gesamtpreis aus Einzelpreis und Anzahl.
 
-    Design by Contract: unit_price und count sind laut Vertrag nie negativ
-    (Aufrufer-Pflicht) und das Ergebnis ist es entsprechend auch nie
-    (Garantie dieser Funktion) — beides wird per assert erzwungen, da eine
-    Verletzung ein Programmierfehler wäre, kein normaler Nutzerfehler.
-
     Args:
         unit_price: Preis pro Karte in Gold (>= 0).
         count: Anzahl der Karten (>= 0).
@@ -175,17 +169,16 @@ def _known_free_count(rarity: str) -> int | None:
 
     Bei Collected!/FREE!-Angeboten zeigt der Screenshot keine Ziffer mehr
     an (das Banner ersetzt den Mengen-Text an dieser Stelle) - match_count()
-    findet dort also nie eine echte Ziffer. Für Epic-Karten ist die Menge
-    beim sonntäglichen Gratis-Angebot aber eine feste, aus dem Spiel
-    bekannte Regel (immer 5 Karten) und lässt sich daher ohne Bilderkennung
-    direkt einsetzen, statt fälschlich bei 0 zu bleiben.
+    findet dort also nie eine Ziffer. Für Epic-Karten ist die Menge beim
+    sonntäglichen Gratis-Angebot aber eine feste, aus dem Spiel bekannte
+    Regel (immer 5 Karten) und lässt sich daher ohne Bilderkennung direkt einsetzen.
 
     Args:
         rarity: Die Seltenheit der Karte.
 
     Returns:
-        Die bekannte feste Menge, oder None, wenn für diese Seltenheit
-        keine feste Gratis-Menge bekannt ist.
+        Die bekannte Menge, oder None, wenn für diese Seltenheit
+        keine Gratis-Menge bekannt ist.
 
     Examples:
         >>> _known_free_count("epic")
@@ -211,28 +204,21 @@ class ClashStoreAnalyzer:
         target_width: Die Standartbreite, auf die alle Bilder skaliert werden.
     """
 
-    # Konfidenz-Schwelle fürs Erkennen, DASS eine Karte überhaupt im Bild
-    # ist. Höher als die beiden Schwellen unten, da Kartenkunst deutlich
-    # markanter/eindeutiger ist als die kleinen Zahlen-/Status-Banner.
+    # Konfidenz-Schwelle fürs Erkennen, DASS eine Karte überhaupt im Bild ist.
     _CARD_MATCH_THRESHOLD = 0.8
 
     # Suchbereich unterhalb der Karte, in dem die Mengen-Templates gesucht
     # werden (relativ zur oberen linken Ecke des Karten-Treffers).
     _COUNT_SEARCH = Region(y0=170, y1=270, x0=0, x1=260)
-    # War 0.85; empirisch gegen alle 181 Test-Screenshots geprüft (siehe
-    # Projektbericht/Commit-Historie): mit der Ziffernanzahl-Gruppierung
-    # (statt Pixel-Breite) behebt 0.8 12 zuvor unerkannte Mengen (45 -> 33
-    # von 984 Erkennungen bleiben 0), ohne eine einzige neue Fehlerkennung
-    # zu verursachen.
+    # Konfidenze-Schwelle fürs Erkennen, wie oft die Karte zu kaufen ist.
     _COUNT_MATCH_THRESHOLD = 0.8
 
     # Suchbereich für die Status-Banner (Collected!/FREE!), die weiter
     # unten auf der Kachel sitzen, an der Stelle des Goldpreises.
     _STATUS_SEARCH = Region(y0=170, y1=500, x0=0, x1=330)
-    # Deutlich niedriger als _COUNT_MATCH_THRESHOLD: hier geht es nur um
-    # "Banner da oder nicht", nicht um die Unterscheidung ähnlicher
-    # Templates. Normale (bezahlte) Karten scoren konstant ~0.28, ein
-    # echtes "Collected!"-Banner ~0.41 -> 0.35 trennt beide sauber.
+    # Konfidenz-Schwelle fürs erkenne, ob die Karte kostenlos war,
+    # niedriger, da nur wichtig ist, ob eines der Symbole erkannt wurde
+    # nicht aber wichtig welches der beiden.
     _STATUS_MATCH_THRESHOLD = 0.35
 
     def __init__(
@@ -255,10 +241,8 @@ class ClashStoreAnalyzer:
         self.target_width = target_width
 
         # analyze_screenshots matcht die Karten-Templates parallel über
-        # mehrere Python-Threads (siehe dort). OpenCVs eigene interne
-        # Parallelisierung (standardmäßig ein Thread je CPU-Kern) würde
-        # sonst mit diesen Threads um dieselben Kerne konkurrieren -
-        # daher hier auf einen internen Thread pro Aufruf begrenzt.
+        # mehrere Python-Threads. Um Oversubscribtion zwischen Python-Threads
+        # und OpenCVs Multithreading zu verhinder, wird OpenCVs ausgeschaltet.
         cv2.setNumThreads(1)
 
         with open(config_path, "r") as f:
@@ -335,15 +319,11 @@ class ClashStoreAnalyzer:
         Template matching der z.B. x80 gegen großes Suchfeld. Kürzere
         Mengen wie "x8" sind optisch ein Präfix von längeren wie "x80"
         und erreichen dort ebenfalls eine hohe Konfidenz. Deshalb werden
-        die Templates nach Ziffernanzahl (nicht nach Pixel-Breite - beim
-        manuellen Zuschneiden bekommen selbst gleich lange Zahlen wie
-        "x20"/"x30" leicht unterschiedliche Breiten, was sie sonst in
-        unterschiedliche Gruppen und damit in die falsche Prüfreihenfolge
-        gebracht hätte) gruppiert und von der längsten zur kürzesten
-        Gruppe durchprobiert: Sobald in einer Gruppe eine Menge die
-        Schwelle erreicht, gewinnt die Menge mit der höchsten Konfidenz
-        innerhalb dieser Gruppe — so gewinnt "x80" gegen "x8" und "x30"
-        gegen das gleich lange "x50".
+        die Templates nach Ziffernanzahl gruppiert und von der längsten
+        zur kürzesten Gruppe durchprobiert: Sobald in einer Gruppe
+        eine Menge die Schwelle erreicht, gewinnt die Menge mit
+        der höchsten Konfidenz innerhalb dieser Gruppe — so gewinnt "x80"
+        gegen "x8" und "x30" gegen das gleich lange "x50".
 
         Args:
             search_zone_gray: Graustufen-Suchbereich unterhalb der Karte.
@@ -422,12 +402,6 @@ class ClashStoreAnalyzer:
     def calculate_price(self, card_name: str, count: int) -> int:
         """Berechnet den Preis der Karte anhand ihrer Anzahl und Seltenheit.
 
-        Design by Contract: card_name darf nicht leer sein und count nicht
-        negativ (Aufrufer-Pflicht, per assert erzwungen). Ist die Karte
-        oder ihre Seltenheit unbekannt, ist das dagegen ein normaler,
-        erwartbarer Fall (z.B. Tippfehler in cards.json) und wird über
-        ValueError behandelt statt über assert.
-
         Args:
             card_name: Der Name der karte
             count: Die erkannte Anzahl (>= 0)
@@ -458,9 +432,9 @@ class ClashStoreAnalyzer:
         """Durchsucht das Bild nach allen bekannten Templates und liest die Werte.
 
         Das Matching der Karten-Templates gegen das volle Bild ist der
-        teuerste Teil (siehe _match_card) und läuft daher über mehrere
-        Threads parallel; alles danach (Mengen/Status/Preis je Treffer)
-        ist billig genug, um sequentiell zu bleiben.
+        teuerste Teil und läuft daher über mehrereThreads parallel;
+        alles danach (Mengen/Status/Preis je Treffer)
+        ist billig genug, um sequentiell zu behalten.
 
         Args:
             image_path: Pfad zum Screenshot
@@ -472,7 +446,7 @@ class ClashStoreAnalyzer:
         if raw_img is None:
             raise FileNotFoundError(f"Screenshot nicht gefunden: {image_path}")
 
-        # preprocess gibt schon greyscaled und skaliertes Bild wieder
+        # preprocess gibt greyscaled und skaliertes Bild wieder
         img_gray, img_color_scaled = self.preprocess(raw_img)
 
         with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
@@ -501,19 +475,14 @@ class ClashStoreAnalyzer:
                 )
                 free = self.is_free(status_zone_gray)
 
-                # Collected!/FREE! ersetzt die Mengen-Ziffer im Screenshot,
-                # match_count() findet dort also nie eine echte Zahl. Für
-                # Seltenheiten mit bekannter fester Gratis-Menge (aktuell
-                # nur Epic, siehe _known_free_count) wird die Menge daher
-                # direkt eingesetzt statt fälschlich bei 0 zu bleiben.
+                # Collected!/FREE! ersetzt die Mengen-Ziffer im Screenshot.
                 if free:
                     known_count = _known_free_count(self.rarities[card_name])
                     if known_count is not None:
                         count_val = known_count
 
-                # Preis trotzdem berechnen (validiert Karte/Seltenheit auch
-                # bei Free-Karten), aber Collected!/FREE! haben nichts
-                # gekostet -> als Preis wird einheitlich 0 gespeichert.
+                # Preis trotzdem berechnen, aber wenn Collected!/FREE!
+                # wird Preis = 0 gesetzt da gratis
                 price = self.calculate_price(card_name, count_val)
                 calculated_price = 0 if free else price
 
