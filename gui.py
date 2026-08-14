@@ -23,6 +23,8 @@ _RARITY_COLORS = {
     "rare": "#e67e22",
     "common": "#3498db",
 }
+_RARITY_RANK = {rarity: rank for rank, rarity in enumerate(_RARITY_COLORS)}
+_STRIPE_TAGS = ("evenrow", "oddrow")
 
 
 class ClashStoreApp:
@@ -155,6 +157,7 @@ class ClashStoreApp:
             )
             self.card_table.column(key, width=width, anchor=anchor)
         self.card_table.pack(fill="both", expand=True)
+        self._configure_stripes(self.card_table)
 
     def _build_history_tab(self, notebook: ttk.Notebook) -> None:
         """Baut den Verlauf-Tab mit der rohen Scan-Historie auf.
@@ -185,6 +188,7 @@ class ClashStoreApp:
             )
             self.history_table.column(key, width=width, anchor=anchor)
         self.history_table.pack(fill="both", expand=True)
+        self._configure_stripes(self.history_table)
 
     def _on_upload(self) -> None:
         """Lässt den Nutzer einen oder mehrere Screenshots wählen und speichert sie.
@@ -265,6 +269,7 @@ class ClashStoreApp:
                     summary["gold"],
                 ),
             )
+        self._restripe(self.card_table)
 
     def _render_history_table(self) -> None:
         """Rendert die rohe Verlaufs-Tabelle."""
@@ -283,6 +288,29 @@ class ClashStoreApp:
                     "Ja" if offer["free"] else "Nein",
                 ),
             )
+        self._restripe(self.history_table)
+
+    def _configure_stripes(self, tree: ttk.Treeview) -> None:
+        """Registriert abwechselnde Zeilenfarben, damit man Zeilen leichter folgen kann.
+
+        Args:
+            tree: Die Tabelle, für die die Streifenfarben registriert werden.
+        """
+        tree.tag_configure(_STRIPE_TAGS[0], background="#ffffff")
+        tree.tag_configure(_STRIPE_TAGS[1], background="#f0f0f0")
+
+    def _restripe(self, tree: ttk.Treeview) -> None:
+        """Weist jeder sichtbaren Zeile abwechselnd eine Streifenfarbe zu.
+
+        Muss nach jedem Neu-Befüllen UND nach jedem Sortieren erneut
+        aufgerufen werden, da sich die sichtbare Reihenfolge der Zeilen
+        sonst von den zugewiesenen Farben löst.
+
+        Args:
+            tree: Die neu einzufärbende Tabelle.
+        """
+        for index, item_id in enumerate(tree.get_children("")):
+            tree.item(item_id, tags=(_STRIPE_TAGS[index % 2],))
 
     def _make_sort_handler(self, tree: ttk.Treeview, column: str) -> Callable[[], None]:
         """Baut einen Klick-Handler, der eine Tabelle nach column sortiert.
@@ -307,8 +335,10 @@ class ClashStoreApp:
     def _sort_treeview(self, tree: ttk.Treeview, column: str) -> None:
         """Sortiert eine Tabelle nach der angeklickten Spalte.
 
-        Numerische Spaltenwerte werden numerisch sortiert, alles andere
-        als Text (case-insensitive). Erneutes Klicken kehrt die Richtung um.
+        Numerische Spaltenwerte werden numerisch sortiert, die Seltenheits-
+        Spalte nach Rang (legendary vor epic vor rare vor common) statt
+        alphabetisch, alles andere als Text (case-insensitive). Erneutes
+        Klicken kehrt die Richtung um.
 
         Args:
             tree: Die zu sortierende Tabelle.
@@ -318,6 +348,8 @@ class ClashStoreApp:
 
         def sort_key(item_id: str) -> tuple[int, float | str]:
             value = tree.set(item_id, column)
+            if column == "rarity":
+                return (0, float(_RARITY_RANK.get(value, len(_RARITY_RANK))))
             try:
                 return (0, float(value))
             except ValueError:
@@ -327,6 +359,7 @@ class ClashStoreApp:
         for index, item_id in enumerate(items):
             tree.move(item_id, "", index)
 
+        self._restripe(tree)
         self._sort_state[(tree, column)] = not reverse
 
 
