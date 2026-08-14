@@ -7,8 +7,8 @@ import unittest
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+from analyzer import ShopOffer
 from database import fetch_all_offers, init_db, save_offers
-from main import ShopOffer
 
 
 class TestDatabase(unittest.TestCase):

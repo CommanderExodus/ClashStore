@@ -5,7 +5,7 @@ import os
 import tempfile
 import unittest
 
-from main import ClashStoreAnalyzer
+from analyzer import ClashStoreAnalyzer
 
 
 class TestInit(unittest.TestCase):

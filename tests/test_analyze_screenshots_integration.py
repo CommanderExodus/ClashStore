@@ -9,7 +9,7 @@ mit synthetischen Templates allein nicht aufgefallen wären.
 
 import unittest
 
-from main import ClashStoreAnalyzer, ShopOffer
+from analyzer import ClashStoreAnalyzer, ShopOffer
 
 # (Screenshot, Kartenname, erwartete Menge) - manuell aus den Screenshots
 # abgelesene Ground Truth, siehe Session-Verlauf.

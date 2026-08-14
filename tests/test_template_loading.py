@@ -9,7 +9,7 @@ import unittest
 import cv2
 from helpers import _random_pattern
 
-from main import ClashStoreAnalyzer
+from analyzer import ClashStoreAnalyzer
 
 
 class TestNumberAndStatusTemplateLoading(unittest.TestCase):

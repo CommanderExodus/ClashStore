@@ -68,7 +68,7 @@ class TestMatchCount(AnalyzerTestCase):
         def fake_score(zone: np.ndarray, template: np.ndarray) -> float:
             return 0.99 if template is narrow_correct else 0.86
 
-        with patch("main._score_template", side_effect=fake_score):
+        with patch("analyzer._score_template", side_effect=fake_score):
             result = self.analyzer.match_count(canvas)
 
         self.assertEqual(result, 20)

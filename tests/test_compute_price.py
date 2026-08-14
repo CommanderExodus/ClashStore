@@ -2,7 +2,7 @@
 
 import unittest
 
-from main import _compute_price
+from analyzer import _compute_price
 
 
 class TestComputePrice(unittest.TestCase):

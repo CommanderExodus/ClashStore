@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import closing
 from datetime import UTC, datetime
 
-from main import ShopOffer
+from analyzer import ShopOffer
 
 
 class StoredOffer(ShopOffer):

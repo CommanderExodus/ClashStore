@@ -7,7 +7,7 @@ import unittest
 
 import numpy as np
 
-from main import ClashStoreAnalyzer
+from analyzer import ClashStoreAnalyzer
 
 
 def _make_analyzer(

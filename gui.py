@@ -5,8 +5,8 @@ from collections.abc import Callable
 from tkinter import filedialog, messagebox, ttk
 from typing import Literal
 
+from analyzer import ClashStoreAnalyzer
 from database import StoredOffer, fetch_all_offers, save_offers
-from main import ClashStoreAnalyzer
 from stats import (
     column_sort_key,
     export_to_csv,
